@@ -8,14 +8,29 @@ LENGTH_LIMITS_NAME_AND_SLUG_FIELDS = 200
 TAG = (
     'Название: {name:.15}. '
     'Цвет: {color:.7}. '
+    'Слаг: {color:.15}. '
+)
+INGREDIENT = (
+    'Название: {name:.15}. '
+    'Единица измерения: {measurement_unit:.15}. '
+)
+RECIPE = (
+    'Название: {name:.15}. '
+    'Текст: {text:.15}. '
+    'Дата публикации: {pub_date:.15}. '
 )
 
 
 class User(AbstractUser):
     """Модель пользователя."""
 
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = [
+        'username',
+        'first_name',
+        'last_name',
+    ]
     email = models.EmailField(
-        'Адрес электронной почты',
         blank=False,
         unique=True
     )
@@ -53,7 +68,11 @@ class Tag(models.Model):
         verbose_name_plural = 'Теги'
 
     def __str__(self):
-        return self.name
+        return TAG.format(
+            name=self.name,
+            color=self.color,
+            slug=self.slug
+        )
 
 
 class Ingredient(models.Model):
@@ -67,7 +86,10 @@ class Ingredient(models.Model):
         verbose_name_plural = 'Ингредиенты'
 
     def __str__(self):
-        return self.name
+        return INGREDIENT.format(
+            name=self.name,
+            measurement_unit=self.measurement_unit
+        )
 
 
 class Recipe(models.Model):
@@ -85,7 +107,7 @@ class Recipe(models.Model):
         default=None
     )
     text = models.TextField()
-    cooking_time = models.IntegerField(validators=MinValueValidator(1))
+    cooking_time = models.IntegerField(validators=(MinValueValidator(1),))
     pub_date = models.DateTimeField(
         'Дата добавления', auto_now_add=True, db_index=True)
 
@@ -94,7 +116,11 @@ class Recipe(models.Model):
         verbose_name_plural = 'Рецепты'
 
     def __str__(self):
-        return self.name
+        return RECIPE.format(
+            name=self.name,
+            text=self.text,
+            pub_date=self.pub_date
+        )
 
 
 class RecipeTag(models.Model):
@@ -134,7 +160,7 @@ class RecipeIngredient(models.Model):
         on_delete=models.CASCADE,
         blank=False,
     )
-    amount = models.IntegerField(validators=MinValueValidator(1))
+    amount = models.IntegerField(validators=(MinValueValidator(1),))
 
     class Meta:
         verbose_name = 'Рецепт/ингредиент'
@@ -162,9 +188,10 @@ class UserRecipeAbstractModel(models.Model):
     )
 
     class Meta:
+        abstract = True
         constraints = [models.UniqueConstraint(
             fields=['user', 'recipe'],
-            name='unique_user_recipe'
+            name='unique_user_recipe(%(class)ss)'
         )]
 
     def __str__(self):
@@ -187,20 +214,20 @@ class ShoppingList(UserRecipeAbstractModel):
         verbose_name_plural = 'Списки покупок'
 
 
-class Follow(models.Model):
+class Subscription(models.Model):
     """Модель подписчиков."""
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='follower')
-    following = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='following')
+        User, on_delete=models.CASCADE, related_name='subscriber')
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='bloger')
 
     class Meta:
         constraints = [models.UniqueConstraint(
-            fields=['author', 'follower'],
-            name='unique_following'
+            fields=['user', 'author'],
+            name='unique_subscription'
         )]
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
 
     def __str__(self):
-        return str(self.author) + '/' + str(self.follower)
+        return str(self.user) + '/' + str(self.author)
