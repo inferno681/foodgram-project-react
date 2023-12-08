@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from rest_framework import mixins, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import SAFE_METHODS
 
 from recipes.models import (
     Favorite,
@@ -13,7 +15,7 @@ from recipes.models import (
     Tag,
     User,
 )
-from .serializers import IngredientSerializer, TagSerializer
+from .serializers import IngredientSerializer, TagSerializer, RecipeSerializer, RecipeWriteSerializer
 
 
 class TagIngredientViewSet(
@@ -33,3 +35,16 @@ class IngredientViewSet(TagIngredientViewSet):
     serializer_class = IngredientSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('name',)
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = Recipe.objects.all()
+    pagination_class = PageNumberPagination
+
+    def get_serializer_class(self):
+        if self.request.method in SAFE_METHODS:
+            return RecipeSerializer
+        return RecipeWriteSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)

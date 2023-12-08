@@ -161,7 +161,7 @@ DJOSER = {
     },
 
     'PERMISSIONS': {
-        'user': ['api.permissions.CurrentUserOrAdminOrReadOnly'],
+        'user': ['api.permissions.CustomCurrentUserOrAdminOrReadOnly'],
         'user_list': ['rest_framework.permissions.IsAuthenticatedOrReadOnly'],
     }
 }
