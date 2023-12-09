@@ -99,7 +99,7 @@ class Recipe(models.Model):
     author = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='recipe')
     ingredients = models.ManyToManyField(
-        Ingredient, through='RecipeIngredient')
+        Ingredient, through='RecipeIngredient', related_name='recipe')
     name = models.CharField(max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS)
     image = models.ImageField(
         upload_to='recipes/images/',
@@ -112,6 +112,7 @@ class Recipe(models.Model):
         'Дата добавления', auto_now_add=True, db_index=True)
 
     class Meta:
+        ordering = ('-pub_date',)
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
 
@@ -152,12 +153,14 @@ class RecipeIngredient(models.Model):
 
     recipe = models.ForeignKey(
         Recipe,
+        related_name='recipe',
         on_delete=models.CASCADE,
         blank=False,
     )
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
+        related_name='ingredients',
         blank=False,
     )
     amount = models.IntegerField(validators=(MinValueValidator(1),))

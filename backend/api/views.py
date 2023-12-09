@@ -16,6 +16,7 @@ from recipes.models import (
     User,
 )
 from .serializers import IngredientSerializer, TagSerializer, RecipeSerializer, RecipeWriteSerializer
+from .pagination import CustomPagination
 
 
 class TagIngredientViewSet(
@@ -39,7 +40,7 @@ class IngredientViewSet(TagIngredientViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    pagination_class = PageNumberPagination
+    pagination_class = CustomPagination
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:

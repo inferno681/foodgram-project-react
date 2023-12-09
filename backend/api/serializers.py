@@ -3,6 +3,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer
 from rest_framework import serializers
+from django.db.models import F
 from rest_framework.relations import SlugRelatedField
 from rest_framework.fields import SerializerMethodField
 from drf_extra_fields.fields import Base64ImageField
@@ -73,7 +74,8 @@ class IngredientWriteSerializer(serializers.ModelSerializer):
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
-    ingredients = IngredientWriteSerializer(many=True)
+    ingredients = IngredientWriteSerializer(
+        many=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(),
                                               many=True)
     image = Base64ImageField()
@@ -91,26 +93,46 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'author'
         )
 
-    def create_ingredients(self, ingredients, recipe):
+    def create_ingredients_amounts(self, recipe, ingredients):
+        ingredients_amounts = []
         for ingredient in ingredients:
-            RecipeIngredient.objects.create(
+            current_ingredient = get_object_or_404(
+                Ingredient, id=ingredient.get("id")
+            )
+            ingredients_amounts.append(RecipeIngredient(
+                ingredient=current_ingredient,
                 recipe=recipe,
-                ingredient_id=ingredient.get('id'),
-                amount=ingredient.get('amount'), )
+                amount=ingredient.get("amount")
+            ))
+        RecipeIngredient.objects.bulk_create(ingredients_amounts)
 
     def create(self, validated_data):
-        ingredients = validated_data.pop('ingredients')
-        tags = validated_data.pop('tags')
+        ingredients = validated_data.pop("ingredients")
+        tags = validated_data.pop("tags")
         recipe = Recipe.objects.create(**validated_data)
+        self.create_ingredients_amounts(recipe, ingredients)
         recipe.tags.set(tags)
-        self.create_ingredients(ingredients, recipe)
         return recipe
+
+    def update(self, recipe, validated_data):
+        ingredients = validated_data.pop("ingredients")
+        tags = validated_data.pop("tags")
+        RecipeIngredient.objects.filter(recipe=recipe).delete()
+        self.create_ingredients_amounts(recipe, ingredients)
+        recipe.tags.set(tags)
+        return super().update(recipe, validated_data)
+
+    def to_representation(self, instance):
+        request = self.context.get('request')
+        context = {'request': request}
+        return RecipeSerializer(instance, context=context).data
 
 
 class RecipeSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)
     author = UserSerializer()
-    ingredients = IngredientAmountSerializer(many=True)
+    ingredients = IngredientAmountSerializer(
+        many=True, source='recipe')
     is_favorited = SerializerMethodField()
     is_in_shopping_cart = SerializerMethodField()
     image = Base64ImageField()
@@ -141,106 +163,3 @@ class RecipeSerializer(serializers.ModelSerializer):
         if user is None or user.is_anonymous:
             return False
         return ShoppingList.objects.filter(recipe=obj, user=user).exists()
-
-
-'''
-class GenreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Genre
-        fields = ('name', 'slug')
-
-
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ('name', 'slug')
-
-
-class TitleOutputSerializer(serializers.ModelSerializer):
-    category = CategorySerializer()
-    genre = GenreSerializer(many=True)
-    rating = serializers.IntegerField(read_only=True, default=None)
-
-    class Meta:
-        fields = (
-            'id', 'name', 'year', 'rating', 'description', 'genre', 'category')
-        model = Title
-
-
-class TitleInputSerializer(TitleOutputSerializer):
-    category = SlugRelatedField(
-        queryset=Category.objects.all(),
-        slug_field='slug'
-    )
-
-    genre = SlugRelatedField(
-        many=True,
-        queryset=Genre.objects.all(),
-        slug_field='slug',
-    )
-    year = serializers.IntegerField(validators=(validate_year,))
-
-    def to_representation(self, title):
-        return TitleOutputSerializer(title).data
-
-
-class ReviewSerializer(serializers.ModelSerializer):
-    author = SlugRelatedField(read_only=True, slug_field='username')
-    score = serializers.IntegerField(validators=(
-        MinValueValidator(limit_value=MIN_SCORE, message=INVALID_SCORE),
-        MaxValueValidator(limit_value=MAX_SCORE, message=INVALID_SCORE),
-    ))
-
-    class Meta:
-        fields = ('id', 'text', 'author', 'score', 'pub_date')
-        model = Review
-
-    def validate(self, data):
-        request = self.context.get('request')
-        if request.method != 'PATCH' and get_object_or_404(
-                Title, pk=request.parser_context.get('kwargs').get('title_id'),
-        ).reviews.filter(author=request.user).exists():
-            raise serializers.ValidationError(
-                SECOND_REVIEW_PROHIBITION_MESSAGE)
-        return data
-
-
-class CommentSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(
-        read_only=True, slug_field='username')
-
-    class Meta:
-        fields = ('id', 'text', 'author', 'pub_date')
-        model = Comment
-
-
-class SignUpSerializer(UsernameValidationMixin, serializers.Serializer):
-    email = serializers.EmailField(
-        max_length=LENGTH_LIMITS_USER_EMAIL, required=True)
-    username = serializers.CharField(
-        max_length=LENGTH_LIMITS_USER_FIELDS,
-        required=True,
-    )
-
-
-class GetTokenSerializer(UsernameValidationMixin, serializers.Serializer):
-    username = serializers.CharField(
-        max_length=LENGTH_LIMITS_USER_FIELDS,
-        required=True)
-    confirmation_code = serializers.CharField(
-        max_length=settings.CONFIRMATION_CODE_LENGTH,
-        required=True)
-
-
-class UserSerializer(UsernameValidationMixin, serializers.ModelSerializer):
-    class Meta:
-        fields = (
-            'username',
-            'email',
-            'first_name',
-            'last_name',
-            'bio',
-            'role'
-        )
-        model = User
-'''
