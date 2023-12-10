@@ -185,3 +185,13 @@ class RecipeSerializer(serializers.ModelSerializer):
         if user is None or user.is_anonymous:
             return False
         return ShoppingList.objects.filter(recipe=obj, user=user).exists()
+
+
+class ShoppingListSerializer(serializers.ModelSerializer):
+    name = serializers.ReadOnlyField(source='recipe.name')
+    cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
+    image = Base64ImageField(source='recipe.image')
+
+    class Meta():
+        model = ShoppingList
+        fields = ('id', 'name', 'image', 'cooking_time')

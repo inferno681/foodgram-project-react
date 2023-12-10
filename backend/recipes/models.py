@@ -185,18 +185,20 @@ class UserRecipeAbstractModel(models.Model):
         User,
         on_delete=models.CASCADE,
         blank=True,
+        related_name='%(class)ss'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         blank=True,
+        related_name='%(class)ss'
     )
 
     class Meta:
         abstract = True
         constraints = [models.UniqueConstraint(
             fields=['user', 'recipe'],
-            name='unique_user_recipe(%(class)ss)'
+            name='unique_user_recipe(%(class)s)'
         )]
 
     def __str__(self):
