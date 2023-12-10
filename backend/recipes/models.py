@@ -8,7 +8,7 @@ LENGTH_LIMITS_NAME_AND_SLUG_FIELDS = 200
 TAG = (
     'Название: {name:.15}. '
     'Цвет: {color:.7}. '
-    'Слаг: {color:.15}. '
+    'Слаг: {slug:.15}. '
 )
 INGREDIENT = (
     'Название: {name:.15}. '
@@ -17,7 +17,7 @@ INGREDIENT = (
 RECIPE = (
     'Название: {name:.15}. '
     'Текст: {text:.15}. '
-    'Дата публикации: {pub_date:.15}. '
+    'Дата публикации: {pub_date}. '
 )
 
 
@@ -64,6 +64,7 @@ class Tag(models.Model):
     )
 
     class Meta:
+        ordering = ('slug',)
         verbose_name = 'Тег'
         verbose_name_plural = 'Теги'
 
@@ -82,6 +83,7 @@ class Ingredient(models.Model):
         max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS)
 
     class Meta:
+        ordering = ('name',)
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
 
@@ -120,7 +122,7 @@ class Recipe(models.Model):
         return RECIPE.format(
             name=self.name,
             text=self.text,
-            pub_date=self.pub_date
+            pub_date=self.pub_date,
         )
 
 

@@ -78,8 +78,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         many=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(),
                                               many=True)
-    image = Base64ImageField()
-    author = UserSerializer(read_only=True)
+    image = Base64ImageField(required=True, allow_null=False)
 
     class Meta:
         model = Recipe
@@ -90,8 +89,31 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'name',
             'text',
             'cooking_time',
-            'author'
         )
+
+    def validate(self, data):
+        if not data.get('image'):
+            raise serializers.ValidationError(
+                {'image': 'Это поле не может быть пустым.'})
+        tags = data.get('tags')
+        if not tags:
+            raise serializers.ValidationError(
+                {'tags': 'Нужно выбрать хотя бы один тег!'})
+        if len(tags) != len(set(tags)):
+            raise serializers.ValidationError({'tags': 'Теги не уникальны!'})
+        ingredients = data.get('ingredients')
+        if not ingredients:
+            raise serializers.ValidationError(
+                {'ingredients': 'Нужно выбрать хотя бы один ингердиент!'})
+        for ingredient in ingredients:
+            if not Ingredient.objects.filter(id=ingredient['id']).exists():
+                raise serializers.ValidationError(
+                    {'ingredients': 'Ингредиент с id {ingredient} отсутствует в базе данных!'.format(ingredient=ingredient['id'])})
+        items = [item['id'] for item in ingredients]
+        if len(items) != len(set(items)):
+            raise serializers.ValidationError(
+                {'ingredients': 'Ингредиенты не уникальны!'})
+        return data
 
     def create_ingredients_amounts(self, recipe, ingredients):
         ingredients_amounts = []
@@ -135,7 +157,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True, source='recipe')
     is_favorited = SerializerMethodField()
     is_in_shopping_cart = SerializerMethodField()
-    image = Base64ImageField()
+    image = Base64ImageField(required=True, allow_null=False)
 
     class Meta:
         model = Recipe
