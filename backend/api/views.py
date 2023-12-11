@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import HttpResponse
+from djoser.views import UserViewSet
 
 from recipes.models import (
     Favorite,
@@ -25,7 +26,8 @@ from .serializers import (IngredientSerializer,
                           TagSerializer,
                           RecipeSerializer,
                           RecipeWriteSerializer,
-                          ShoppingListSerializer)
+                          ShortRecipeSerializer,
+                          SubscriptionSerializer)
 from .pagination import CustomPagination
 from .permissions import IsAuthorOrReadOnly
 
@@ -76,7 +78,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if not Recipe.objects.filter(id=pk).exists():
             raise ValidationError(
                 {'errors': 'Такого рецепта не существует!'})
-
         recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
             shopping_list, created = ShoppingList.objects.get_or_create(
@@ -84,7 +85,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if not created:
                 raise ValidationError(
                     {'errors': 'Рецепт уже в списке покупок!'})
-            serializer = ShoppingListSerializer(shopping_list)
+            serializer = ShortRecipeSerializer(shopping_list)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         shopping_list = get_object_or_404(
             ShoppingList,
@@ -121,3 +122,71 @@ class RecipeViewSet(viewsets.ModelViewSet):
         response = HttpResponse(shopping_list, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename={filename}'
         return response
+
+    @action(methods=('POST', 'DELETE'),
+            detail=True,
+            url_path='favorite',
+            permission_classes=(IsAuthenticated,))
+    def favorites(self, request, pk):
+        user = request.user
+        if not Recipe.objects.filter(id=pk).exists():
+            raise ValidationError(
+                {'errors': 'Такого рецепта не существует!'})
+        recipe = get_object_or_404(Recipe, id=pk)
+        if request.method == 'POST':
+            favorite, created = Favorite.objects.get_or_create(
+                user=user, recipe=recipe)
+            if not created:
+                raise ValidationError(
+                    {'errors': 'Рецепт уже в избранном!'})
+            serializer = ShortRecipeSerializer(favorite)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        favorite = get_object_or_404(
+            ShoppingList,
+            user=user,
+            recipe=recipe
+        )
+        favorite.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CustomUserViewSet(UserViewSet):
+    @action(methods=('POST', 'DELETE'),
+            detail=True,
+            url_path='subscribe',
+            permission_classes=(IsAuthenticated,))
+    def subscribtion(self, request, id):
+        user = request.user
+        if not User.objects.filter(id=id).exists():
+            raise ValidationError(
+                {'errors': 'Такого автора не существует!'})
+        author = get_object_or_404(User, id=id)
+        if user == author:
+            raise ValidationError(
+                {'errors': 'нельзя подписаться на себя!'})
+        if request.method == 'POST':
+            subscribtion, created = Subscription.objects.get_or_create(
+                user=user, author=author)
+            if not created:
+                raise ValidationError(
+                    {'errors': 'Автор уже в избранном!'})
+            serializer = SubscriptionSerializer(
+                subscribtion)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        author = get_object_or_404(
+            Subscription,
+            user=user,
+            author=author
+        )
+        author.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(methods=('GET',),
+            detail=False,
+            url_path='subscribtions',
+            permission_classes=(IsAuthenticated,))
+    def subscribtions(self, request):
+        bloger = request.user.subscriber.all()
+        pages = self.paginate_queryset(bloger)
+        serializer = SubscriptionSerializer(pages, many=True)
+        return self.get_paginated_response(serializer.data)

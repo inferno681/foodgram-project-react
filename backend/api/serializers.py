@@ -21,7 +21,7 @@ from recipes.models import (
 )
 
 
-class UserSerializer(UserSerializer):
+class CustomUserSerializer(UserSerializer):
     is_subscribed = SerializerMethodField()
 
     class Meta():
@@ -152,7 +152,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
 class RecipeSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)
-    author = UserSerializer()
+    author = CustomUserSerializer()
     ingredients = IngredientAmountSerializer(
         many=True, source='recipe')
     is_favorited = SerializerMethodField()
@@ -187,7 +187,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         return ShoppingList.objects.filter(recipe=obj, user=user).exists()
 
 
-class ShoppingListSerializer(serializers.ModelSerializer):
+class ShortRecipeSerializer(serializers.ModelSerializer):
     name = serializers.ReadOnlyField(source='recipe.name')
     cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
     image = Base64ImageField(source='recipe.image')
@@ -195,3 +195,16 @@ class ShoppingListSerializer(serializers.ModelSerializer):
     class Meta():
         model = ShoppingList
         fields = ('id', 'name', 'image', 'cooking_time')
+
+
+class SubscriptionSerializer(CustomUserSerializer):
+    recipes = ShortRecipeSerializer(many=True)
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = tuple(CustomUserSerializer.Meta.fields) + \
+            ('recipes', 'recipes_count')
+
+    def get_recipes_count(self, obj):
+        return obj.author.recipes.count()
