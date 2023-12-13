@@ -8,7 +8,7 @@ LENGTH_LIMITS_NAME_AND_SLUG_FIELDS = 200
 TAG = (
     'Название: {name:.15}. '
     'Цвет: {color:.7}. '
-    'Слаг: {color:.15}. '
+    'Слаг: {slug:.15}. '
 )
 INGREDIENT = (
     'Название: {name:.15}. '
@@ -17,7 +17,7 @@ INGREDIENT = (
 RECIPE = (
     'Название: {name:.15}. '
     'Текст: {text:.15}. '
-    'Дата публикации: {pub_date:.15}. '
+    'Дата публикации: {pub_date}. '
 )
 
 
@@ -64,6 +64,7 @@ class Tag(models.Model):
     )
 
     class Meta:
+        ordering = ('slug',)
         verbose_name = 'Тег'
         verbose_name_plural = 'Теги'
 
@@ -82,6 +83,7 @@ class Ingredient(models.Model):
         max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS)
 
     class Meta:
+        ordering = ('name',)
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
 
@@ -99,7 +101,7 @@ class Recipe(models.Model):
     author = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='recipe')
     ingredients = models.ManyToManyField(
-        Ingredient, through='RecipeIngredient')
+        Ingredient, through='RecipeIngredient', related_name='recipe')
     name = models.CharField(max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS)
     image = models.ImageField(
         upload_to='recipes/images/',
@@ -112,6 +114,7 @@ class Recipe(models.Model):
         'Дата добавления', auto_now_add=True, db_index=True)
 
     class Meta:
+        ordering = ('-pub_date',)
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
 
@@ -119,7 +122,7 @@ class Recipe(models.Model):
         return RECIPE.format(
             name=self.name,
             text=self.text,
-            pub_date=self.pub_date
+            pub_date=self.pub_date,
         )
 
 
@@ -152,12 +155,14 @@ class RecipeIngredient(models.Model):
 
     recipe = models.ForeignKey(
         Recipe,
+        related_name='recipe',
         on_delete=models.CASCADE,
         blank=False,
     )
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
+        related_name='ingredients',
         blank=False,
     )
     amount = models.IntegerField(validators=(MinValueValidator(1),))
@@ -180,18 +185,20 @@ class UserRecipeAbstractModel(models.Model):
         User,
         on_delete=models.CASCADE,
         blank=True,
+        related_name='%(class)ss'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         blank=True,
+        related_name='%(class)ss'
     )
 
     class Meta:
         abstract = True
         constraints = [models.UniqueConstraint(
             fields=['user', 'recipe'],
-            name='unique_user_recipe(%(class)ss)'
+            name='unique_user_recipe(%(class)s)'
         )]
 
     def __str__(self):
