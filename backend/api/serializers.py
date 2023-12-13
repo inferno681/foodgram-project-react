@@ -188,23 +188,43 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class ShortRecipeSerializer(serializers.ModelSerializer):
-    name = serializers.ReadOnlyField(source='recipe.name')
-    cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
-    image = Base64ImageField(source='recipe.image')
 
     class Meta():
-        model = ShoppingList
+        model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = ('id', 'name', 'image', 'cooking_time')
 
 
 class SubscriptionSerializer(CustomUserSerializer):
-    recipes = ShortRecipeSerializer(many=True)
+    id = serializers.IntegerField(source='author.id')
+    email = serializers.EmailField(source='author.email')
+    username = serializers.CharField(source='author.username')
+    first_name = serializers.CharField(source='author.first_name')
+    last_name = serializers.CharField(source='author.last_name')
+    recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = tuple(CustomUserSerializer.Meta.fields) + \
             ('recipes', 'recipes_count')
+        read_only_fields = ("email", "username", "first_name", "last_name")
+
+    def get_recipes(self, obj):
+
+        request = self.context.get("request")
+        limit = request.GET.get("recipes_limit")
+        recipes = obj.author.recipe.all()
+        if limit:
+            recipes = recipes[: int(limit)]
+        serializer = ShortRecipeSerializer(recipes, many=True, read_only=True)
+        return serializer.data
 
     def get_recipes_count(self, obj):
-        return obj.author.recipes.count()
+        return Recipe.objects.filter(author=obj.author).count()
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+        return Subscription.objects.filter(
+            author=obj.author, user=request.user
+        ).exists()
