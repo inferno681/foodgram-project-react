@@ -149,9 +149,9 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return super().update(recipe, validated_data)
 
     def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {'request': request}
-        return RecipeSerializer(instance, context=context).data
+        return RecipeSerializer(
+            instance, context={'request': self.context.get('request')}
+        ).data
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -215,9 +215,7 @@ class SubscriptionSerializer(CustomUserSerializer):
         read_only_fields = ("email", "username", "first_name", "last_name")
 
     def get_recipes(self, obj):
-
-        request = self.context.get("request")
-        limit = request.GET.get("recipes_limit")
+        limit = self.context.get("request").GET.get("recipes_limit")
         recipes = obj.author.recipe.all()
         if limit:
             recipes = recipes[: int(limit)]
@@ -228,7 +226,6 @@ class SubscriptionSerializer(CustomUserSerializer):
         return Recipe.objects.filter(author=obj.author).count()
 
     def get_is_subscribed(self, obj):
-        request = self.context.get('request')
         return Subscription.objects.filter(
-            author=obj.author, user=request.user
+            author=obj.author, user=self.context.get('request').user
         ).exists()
