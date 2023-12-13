@@ -17,6 +17,16 @@ from recipes.models import (
 )
 
 
+NO_IMAGE_MESSAGE = {'image': 'Это поле не может быть пустым.'}
+NO_TAGS_MESSAGE = {'tags': 'Нужно выбрать хотя бы один тег!'}
+SAME_TAGS_MESSAGE = {'tags': 'Теги не уникальны!'}
+NO_INGREDIENTS_MESSAGE = {
+    'ingredients': 'Нужно выбрать хотя бы один ингердиент!'}
+WRONG_INGREDIENT_MESSAGE = ('Ингредиент с id {ingredient} '
+                            'отсутствует в базе данных!')
+SAME_INGREDIENTS_MESSAGE = {'ingredients': 'Ингредиенты не уникальны!'}
+
+
 class CustomUserSerializer(UserSerializer):
     is_subscribed = SerializerMethodField()
 
@@ -89,26 +99,24 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if not data.get('image'):
-            raise serializers.ValidationError(
-                {'image': 'Это поле не может быть пустым.'})
+            raise serializers.ValidationError(NO_IMAGE_MESSAGE)
         tags = data.get('tags')
         if not tags:
-            raise serializers.ValidationError(
-                {'tags': 'Нужно выбрать хотя бы один тег!'})
+            raise serializers.ValidationError(NO_TAGS_MESSAGE)
         if len(tags) != len(set(tags)):
-            raise serializers.ValidationError({'tags': 'Теги не уникальны!'})
+            raise serializers.ValidationError(SAME_TAGS_MESSAGE)
         ingredients = data.get('ingredients')
         if not ingredients:
-            raise serializers.ValidationError(
-                {'ingredients': 'Нужно выбрать хотя бы один ингердиент!'})
+            raise serializers.ValidationError(NO_INGREDIENTS_MESSAGE)
         for ingredient in ingredients:
             if not Ingredient.objects.filter(id=ingredient['id']).exists():
                 raise serializers.ValidationError(
-                    {'ingredients': 'Ингредиент с id {ingredient} отсутствует в базе данных!'.format(ingredient=ingredient['id'])})
+                    {'ingredients': WRONG_INGREDIENT_MESSAGE.format(
+                        ingredient=ingredient['id']
+                    )})
         items = [item['id'] for item in ingredients]
         if len(items) != len(set(items)):
-            raise serializers.ValidationError(
-                {'ingredients': 'Ингредиенты не уникальны!'})
+            raise serializers.ValidationError(SAME_INGREDIENTS_MESSAGE)
         return data
 
     def create_ingredients_amounts(self, recipe, ingredients):
