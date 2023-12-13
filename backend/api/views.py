@@ -11,6 +11,7 @@ from django.db.models import Sum
 from django.http import HttpResponse
 from djoser.views import UserViewSet
 
+from .filters import RecipeFilter
 from recipes.models import (
     Favorite,
     Ingredient,
@@ -56,6 +57,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     pagination_class = CustomPagination
     filter_backends = (DjangoFilterBackend,)
     permission_classes = (IsAuthorOrReadOnly,)
+    filterset_class = RecipeFilter
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
@@ -74,8 +76,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk):
         user = request.user
-        recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
+            if not Recipe.objects.filter(id=pk).exists():
+                raise ValidationError(
+                    {'errors': 'Нет такого рецепта'})
+            recipe = Recipe.objects.filter(id=pk).get()
             shopping_list, created = ShoppingList.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
@@ -83,12 +88,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     {'errors': 'Рецепт уже в списке покупок!'})
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        shopping_list = get_object_or_404(
-            ShoppingList,
-            user=user,
-            recipe=recipe
-        )
-        shopping_list.delete()
+        recipe = get_object_or_404(Recipe, id=pk)
+        if not ShoppingList.objects.filter(user=user, recipe=recipe).exists():
+            raise ValidationError(
+                {'errors': 'Рецепта нет в списке покупок!'})
+        ShoppingList.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=('GET',),
@@ -125,8 +129,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=(IsAuthenticated,))
     def favorites(self, request, pk):
         user = request.user
-        recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
+            if not Recipe.objects.filter(id=pk).exists():
+                raise ValidationError(
+                    {'errors': 'Нет такого рецепта'})
+            recipe = Recipe.objects.filter(id=pk).get()
             favorite, created = Favorite.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
@@ -134,6 +141,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     {'errors': 'Рецепт уже в избранном!'})
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        recipe = get_object_or_404(Recipe, id=pk)
         if not Favorite.objects.filter(user=user, recipe=recipe).exists():
             raise ValidationError(
                 {'errors': 'Рецепта нет в избранном!'})

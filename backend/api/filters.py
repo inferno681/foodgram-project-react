@@ -1,16 +1,25 @@
-def recipe_filter(self, queryset, name, value):
+import django_filters
+from recipes.models import Recipe
 
-    if name == 'author':
-        return queryset.filter(author__username=value)
 
-    if name == 'tags':
-        tags = value.split(',')
-        return queryset.filter(tags__slug__in=tags)
+class RecipeFilter(django_filters.FilterSet):
+    is_favorited = django_filters.CharFilter(method='get_is_favorited')
+    is_in_shopping_cart = django_filters.CharFilter(
+        method='get_is_in_shopping_cart')
 
-    if name == 'is_favorited':
-        if value == '1':
-            return queryset.filter(favorite__user=self.request.user)
-        elif value == '0':
-            return queryset.exclude(favorite__user=self.request.user)
+    def get_is_favorited(self, queryset, name, value):
+        if value and self.request.user.is_authenticated:
+            return queryset.filter(favorites__user=self.request.user)
+        return queryset
 
-    return queryset
+    def get_is_in_shopping_cart(self, queryset, name, value):
+        if value and self.request.user.is_authenticated:
+            return queryset.filter(shoppinglists__user=self.request.user)
+        return queryset
+
+    class Meta:
+        model = Recipe
+        fields = {
+            'author': ['exact'],
+            'tags': ['exact'],
+        }
