@@ -1,15 +1,13 @@
-from django.shortcuts import render
-from rest_framework import mixins, viewsets, filters, status
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import SAFE_METHODS, IsAuthenticatedOrReadOnly, IsAuthenticated
-from rest_framework.decorators import action
-from django.shortcuts import get_object_or_404
-from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
 from django.db.models import Sum
+from django_filters.rest_framework import DjangoFilterBackend
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
+from rest_framework.response import Response
 
 from .filters import RecipeFilter
 from recipes.models import (
@@ -17,20 +15,27 @@ from recipes.models import (
     Ingredient,
     Recipe,
     RecipeIngredient,
-    RecipeTag,
     ShoppingList,
     Subscription,
     Tag,
     User,
 )
-from .serializers import (IngredientSerializer,
-                          TagSerializer,
-                          RecipeSerializer,
-                          RecipeWriteSerializer,
-                          ShortRecipeSerializer,
-                          SubscriptionSerializer)
 from .pagination import CustomPagination
 from .permissions import IsAuthorOrReadOnly
+from .serializers import (
+    IngredientSerializer,
+    TagSerializer,
+    RecipeSerializer,
+    RecipeWriteSerializer,
+    ShortRecipeSerializer,
+    SubscriptionSerializer
+)
+
+
+NO_RECIPE_MESSAGE = {'errors': 'Нет такого рецепта'}
+RECIPE_IN_SHOPPING_LIST_MESSAGE = {'errors': 'Рецепт уже в списке покупок!'}
+NO_RECIPE_IN_SHOPPING_LIST_MESSAGE = {
+    'errors': 'Рецепта нет в списке покупок!'}
 
 
 class TagIngredientViewSet(
@@ -78,20 +83,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
         if request.method == 'POST':
             if not Recipe.objects.filter(id=pk).exists():
-                raise ValidationError(
-                    {'errors': 'Нет такого рецепта'})
+                raise ValidationError(NO_RECIPE_MESSAGE)
             recipe = Recipe.objects.filter(id=pk).get()
             shopping_list, created = ShoppingList.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
-                raise ValidationError(
-                    {'errors': 'Рецепт уже в списке покупок!'})
+                raise ValidationError(RECIPE_IN_SHOPPING_LIST_MESSAGE)
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         recipe = get_object_or_404(Recipe, id=pk)
         if not ShoppingList.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError(
-                {'errors': 'Рецепта нет в списке покупок!'})
+            raise ValidationError(NO_RECIPE_IN_SHOPPING_LIST_MESSAGE)
         ShoppingList.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

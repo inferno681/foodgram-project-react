@@ -1,11 +1,8 @@
-from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.shortcuts import get_object_or_404
-from djoser.serializers import UserSerializer
 from rest_framework import serializers
-from django.db.models import F
-from rest_framework.relations import SlugRelatedField
 from rest_framework.fields import SerializerMethodField
+
+from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 
 from recipes.models import (
@@ -13,7 +10,6 @@ from recipes.models import (
     Ingredient,
     Recipe,
     RecipeIngredient,
-    RecipeTag,
     ShoppingList,
     Subscription,
     Tag,
