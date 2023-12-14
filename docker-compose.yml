@@ -26,13 +26,13 @@ services:
 
   frontend:
     env_file: .env
-    image: ./frontend
+    build: ./frontend
     command: cp -r /app/build/. /frontend_static/
     volumes:
       - static:/frontend_static
 
   gateway:
-    image: ./nginx
+    build: ./nginx
     env_file: .env
     ports:
       - 7000:80
