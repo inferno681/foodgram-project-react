@@ -1,5 +1,3 @@
-# flake8: noqa
-import csv
 import pandas as pd
 import psycopg2
 import os
@@ -28,7 +26,8 @@ DB_CONFIG = {
 def copy_data(table_name, cursor, key):
     with open(f'{DIRECTORY}{key}', 'r', encoding='utf-8') as file:
         header = file.readline().strip().split(',')
-        query = f"COPY {table_name} ({', '.join(header)}) FROM STDIN WITH (FORMAT CSV, HEADER FALSE, DELIMITER ',')"
+        query = (f'COPY {table_name} ({", ".join(header)}) '
+                 'FROM STDIN WITH (FORMAT CSV, HEADER FALSE, DELIMITER ",")')
         cursor.copy_expert(query, file)
 
 
@@ -38,7 +37,10 @@ if os.getenv('SQLITE_ACTIVATED', 'False') == 'True':
         csv_file = f'{DIRECTORY}{key}'
         table_name = DATA[key]
         df = pd.read_csv(csv_file)
-        df.to_sql(table_name, conn, if_exists='append', index=False)
+        try:
+            df.to_sql(table_name, conn, if_exists='append', index=False)
+        except sqlite3.IntegrityError as error:
+            raise sqlite3.IntegrityError(f'Данные уже загружены. log:{error}')
     conn.close()
 else:
     conn = psycopg2.connect(**DB_CONFIG)
@@ -46,6 +48,10 @@ else:
     for key in DATA:
         table_name = DATA[key]
         cursor = conn.cursor()
-        copy_data(table_name, cursor, key)
+        try:
+            copy_data(table_name, cursor, key)
+        except psycopg2.IntegrityError as error:
+            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
+
         cursor.close()
     conn.close()
