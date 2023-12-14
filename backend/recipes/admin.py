@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin import display
 
 from .models import (
     Favorite,
@@ -31,6 +32,7 @@ class UserAdmin(admin.ModelAdmin):
         'first_name',
         'last_name',
     )
+    list_filter = ('email', 'username')
 
 
 class RecipeIngredientInLine(admin.TabularInline):
@@ -51,11 +53,17 @@ class RecipeAdmin(admin.ModelAdmin):
         'author',
         'text',
         'cooking_time',
+        'added_to_favorites',
         'pub_date',
     )
     list_filter = ('name', 'author__username', 'tags__name', 'cooking_time')
+    readonly_fields = ('added_to_favorites',)
     inlines = (RecipeIngredientInLine, RecipeTagInLine)
     search_fields = ('name', 'author__username',)
+
+    @display(description='В избранном у')
+    def added_to_favorites(self, obj):
+        return obj.favorites.count()
 
 
 class FavoriteShoppingListAdmin(admin.ModelAdmin):
