@@ -1,1 +1,1 @@
-# praktikum_new_diplom
+[![Main Foodgram workflow](https://github.com/inferno681/foodgram-project-react/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/inferno681/foodgram-project-react/actions/workflows/main.yml)
