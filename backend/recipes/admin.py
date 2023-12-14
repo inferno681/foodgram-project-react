@@ -34,8 +34,14 @@ class UserAdmin(admin.ModelAdmin):
 
 
 class RecipeIngredientInLine(admin.TabularInline):
-    model = Recipe.ingredients.through
-    extra = 10
+    model = RecipeIngredient
+    extra = 5
+    min_num = 1
+
+
+class RecipeTagInLine(admin.TabularInline):
+    model = RecipeTag
+    extra = 5
     min_num = 1
 
 
@@ -48,7 +54,7 @@ class RecipeAdmin(admin.ModelAdmin):
         'pub_date',
     )
     list_filter = ('name', 'author__username', 'tags__name', 'cooking_time')
-    inlines = (RecipeIngredientInLine,)
+    inlines = (RecipeIngredientInLine, RecipeTagInLine)
     search_fields = ('name', 'author__username',)
 
 
