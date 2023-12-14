@@ -1,11 +1,8 @@
-from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.shortcuts import get_object_or_404
-from djoser.serializers import UserSerializer
 from rest_framework import serializers
-from django.db.models import F
-from rest_framework.relations import SlugRelatedField
 from rest_framework.fields import SerializerMethodField
+
+from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 
 from recipes.models import (
@@ -13,12 +10,21 @@ from recipes.models import (
     Ingredient,
     Recipe,
     RecipeIngredient,
-    RecipeTag,
     ShoppingList,
     Subscription,
     Tag,
     User,
 )
+
+
+NO_IMAGE_MESSAGE = {'image': 'Это поле не может быть пустым.'}
+NO_TAGS_MESSAGE = {'tags': 'Нужно выбрать хотя бы один тег!'}
+SAME_TAGS_MESSAGE = {'tags': 'Теги не уникальны!'}
+NO_INGREDIENTS_MESSAGE = {
+    'ingredients': 'Нужно выбрать хотя бы один ингердиент!'}
+WRONG_INGREDIENT_MESSAGE = ('Ингредиент с id {ingredient} '
+                            'отсутствует в базе данных!')
+SAME_INGREDIENTS_MESSAGE = {'ingredients': 'Ингредиенты не уникальны!'}
 
 
 class CustomUserSerializer(UserSerializer):
@@ -93,26 +99,24 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if not data.get('image'):
-            raise serializers.ValidationError(
-                {'image': 'Это поле не может быть пустым.'})
+            raise serializers.ValidationError(NO_IMAGE_MESSAGE)
         tags = data.get('tags')
         if not tags:
-            raise serializers.ValidationError(
-                {'tags': 'Нужно выбрать хотя бы один тег!'})
+            raise serializers.ValidationError(NO_TAGS_MESSAGE)
         if len(tags) != len(set(tags)):
-            raise serializers.ValidationError({'tags': 'Теги не уникальны!'})
+            raise serializers.ValidationError(SAME_TAGS_MESSAGE)
         ingredients = data.get('ingredients')
         if not ingredients:
-            raise serializers.ValidationError(
-                {'ingredients': 'Нужно выбрать хотя бы один ингердиент!'})
+            raise serializers.ValidationError(NO_INGREDIENTS_MESSAGE)
         for ingredient in ingredients:
             if not Ingredient.objects.filter(id=ingredient['id']).exists():
                 raise serializers.ValidationError(
-                    {'ingredients': 'Ингредиент с id {ingredient} отсутствует в базе данных!'.format(ingredient=ingredient['id'])})
+                    {'ingredients': WRONG_INGREDIENT_MESSAGE.format(
+                        ingredient=ingredient['id']
+                    )})
         items = [item['id'] for item in ingredients]
         if len(items) != len(set(items)):
-            raise serializers.ValidationError(
-                {'ingredients': 'Ингредиенты не уникальны!'})
+            raise serializers.ValidationError(SAME_INGREDIENTS_MESSAGE)
         return data
 
     def create_ingredients_amounts(self, recipe, ingredients):
@@ -145,9 +149,9 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return super().update(recipe, validated_data)
 
     def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {'request': request}
-        return RecipeSerializer(instance, context=context).data
+        return RecipeSerializer(
+            instance, context={'request': self.context.get('request')}
+        ).data
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -211,9 +215,7 @@ class SubscriptionSerializer(CustomUserSerializer):
         read_only_fields = ("email", "username", "first_name", "last_name")
 
     def get_recipes(self, obj):
-
-        request = self.context.get("request")
-        limit = request.GET.get("recipes_limit")
+        limit = self.context.get("request").GET.get("recipes_limit")
         recipes = obj.author.recipe.all()
         if limit:
             recipes = recipes[: int(limit)]
@@ -224,7 +226,6 @@ class SubscriptionSerializer(CustomUserSerializer):
         return Recipe.objects.filter(author=obj.author).count()
 
     def get_is_subscribed(self, obj):
-        request = self.context.get('request')
         return Subscription.objects.filter(
-            author=obj.author, user=request.user
+            author=obj.author, user=self.context.get('request').user
         ).exists()

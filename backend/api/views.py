@@ -1,15 +1,13 @@
-from django.shortcuts import render
-from rest_framework import mixins, viewsets, filters, status
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import SAFE_METHODS, IsAuthenticatedOrReadOnly, IsAuthenticated
-from rest_framework.decorators import action
-from django.shortcuts import get_object_or_404
-from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
 from django.db.models import Sum
+from django_filters.rest_framework import DjangoFilterBackend
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
+from rest_framework.response import Response
 
 from .filters import RecipeFilter
 from recipes.models import (
@@ -17,20 +15,37 @@ from recipes.models import (
     Ingredient,
     Recipe,
     RecipeIngredient,
-    RecipeTag,
     ShoppingList,
     Subscription,
     Tag,
     User,
 )
-from .serializers import (IngredientSerializer,
-                          TagSerializer,
-                          RecipeSerializer,
-                          RecipeWriteSerializer,
-                          ShortRecipeSerializer,
-                          SubscriptionSerializer)
 from .pagination import CustomPagination
 from .permissions import IsAuthorOrReadOnly
+from .serializers import (
+    IngredientSerializer,
+    TagSerializer,
+    RecipeSerializer,
+    RecipeWriteSerializer,
+    ShortRecipeSerializer,
+    SubscriptionSerializer
+)
+
+
+NO_RECIPE_MESSAGE = {'errors': 'Нет такого рецепта'}
+RECIPE_IN_SHOPPING_LIST_MESSAGE = {'errors': 'Рецепт уже в списке покупок!'}
+NO_RECIPE_IN_SHOPPING_LIST_MESSAGE = {
+    'errors': 'Рецепта нет в списке покупок!'}
+SHOPPING_LIST_EMPTY_MESSAGE = {'errors': 'Список покупок пуст!'}
+SHOPPING_LIST_TITLE_FOR_DOWNLOAD = shopping_list = (
+    'Список покупок\n'
+    'Пользователь: {user_full_name}\n')
+SHOPPING_LIST_FILE_NAME = '{username}_shopping_list.txt'
+RECIPE_IN_FAVORITES_MESSAGE = {'errors': 'Рецепт уже в избранном!'}
+NO_RECIPE_IN_FAVORITE_MESSAGE = {'errors': 'Рецепта нет в избранном!'}
+SELF_SUBSCRIBE_MESSAGE = {'errors': 'Нельзя подписаться на себя!'}
+SUBSCRIPTION_EXIST_MESSAGE = {'errors': 'Вы уже подписаны на этого автора!'}
+NO_SUBSCRIBTION_MESSAGE = {'errors': 'Нельзя удалить несуществующую подписку!'}
 
 
 class TagIngredientViewSet(
@@ -78,20 +93,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
         if request.method == 'POST':
             if not Recipe.objects.filter(id=pk).exists():
-                raise ValidationError(
-                    {'errors': 'Нет такого рецепта'})
+                raise ValidationError(NO_RECIPE_MESSAGE)
             recipe = Recipe.objects.filter(id=pk).get()
             shopping_list, created = ShoppingList.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
-                raise ValidationError(
-                    {'errors': 'Рецепт уже в списке покупок!'})
+                raise ValidationError(RECIPE_IN_SHOPPING_LIST_MESSAGE)
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         recipe = get_object_or_404(Recipe, id=pk)
         if not ShoppingList.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError(
-                {'errors': 'Рецепта нет в списке покупок!'})
+            raise ValidationError(NO_RECIPE_IN_SHOPPING_LIST_MESSAGE)
         ShoppingList.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -102,23 +114,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def download_shopping_list(self, request):
         user = request.user
         if not ShoppingList.objects.filter(user=user).exists():
-            raise ValidationError(
-                {'errors': 'Список покупок пуст!'})
+            raise ValidationError(SHOPPING_LIST_EMPTY_MESSAGE)
         ingredients = RecipeIngredient.objects.filter(
             recipe__shoppinglists__user=user
         ).values(
             'ingredient__name',
             'ingredient__measurement_unit'
         ).annotate(amount=Sum('amount'))
-        shopping_list = ('Список покупок\n'
-                         f'Пользователь: {user.get_full_name()}\n')
+        shopping_list = SHOPPING_LIST_TITLE_FOR_DOWNLOAD.format(
+            user_full_name=user.get_full_name()
+        )
         shopping_list += '\n'.join([
             f'- {ingredient["ingredient__name"]} '
             f'({ingredient["ingredient__measurement_unit"]})'
             f' - {ingredient["amount"]}'
             for ingredient in ingredients
         ])
-        filename = f'{user.username}_shopping_list.txt'
+        filename = SHOPPING_LIST_FILE_NAME.format(username=user.username)
         response = HttpResponse(shopping_list, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename={filename}'
         return response
@@ -131,20 +143,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
         if request.method == 'POST':
             if not Recipe.objects.filter(id=pk).exists():
-                raise ValidationError(
-                    {'errors': 'Нет такого рецепта'})
+                raise ValidationError(NO_RECIPE_MESSAGE)
             recipe = Recipe.objects.filter(id=pk).get()
             favorite, created = Favorite.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
-                raise ValidationError(
-                    {'errors': 'Рецепт уже в избранном!'})
+                raise ValidationError(RECIPE_IN_FAVORITES_MESSAGE)
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         recipe = get_object_or_404(Recipe, id=pk)
         if not Favorite.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError(
-                {'errors': 'Рецепта нет в избранном!'})
+            raise ValidationError(NO_RECIPE_IN_FAVORITE_MESSAGE)
         Favorite.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -158,20 +167,17 @@ class CustomUserViewSet(UserViewSet):
         user = request.user
         author = get_object_or_404(User, id=id)
         if user == author:
-            raise ValidationError(
-                {'errors': 'Нельзя подписаться на себя!'})
+            raise ValidationError(SELF_SUBSCRIBE_MESSAGE)
         if request.method == 'POST':
             subscribtion, created = Subscription.objects.get_or_create(
                 user=user, author=author)
             if not created:
-                raise ValidationError(
-                    {'errors': 'Автор уже в избранном!'})
+                raise ValidationError(SUBSCRIPTION_EXIST_MESSAGE)
             serializer = SubscriptionSerializer(
                 subscribtion, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         if not Subscription.objects.filter(user=user, author=author).exists():
-            raise ValidationError(
-                {'errors': 'Нельзя удалить несуществующую подписку!'})
+            raise ValidationError(NO_SUBSCRIBTION_MESSAGE)
         Subscription.objects.filter(user=user, author=author).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin import display
 
 from .models import (
     Favorite,
@@ -13,12 +14,98 @@ from .models import (
 )
 
 
-admin.site.register(Favorite)
-admin.site.register(Ingredient)
-admin.site.register(Recipe)
-admin.site.register(RecipeIngredient)
-admin.site.register(RecipeTag)
-admin.site.register(ShoppingList)
-admin.site.register(Subscription)
-admin.site.register(Tag)
-admin.site.register(User)
+admin.site.empty_value_display = 'Не задано'
+
+
+class UserAdmin(admin.ModelAdmin):
+    list_display = (
+        'email',
+        'username',
+        'is_staff',
+        'first_name',
+        'last_name',
+    )
+    search_fields = (
+        'email',
+        'username',
+        'is_staff',
+        'first_name',
+        'last_name',
+    )
+    list_filter = ('email', 'username')
+
+
+class RecipeIngredientInLine(admin.TabularInline):
+    model = RecipeIngredient
+    extra = 5
+    min_num = 1
+
+
+class RecipeTagInLine(admin.TabularInline):
+    model = RecipeTag
+    extra = 5
+    min_num = 1
+
+
+class RecipeAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'author',
+        'text',
+        'cooking_time',
+        'added_to_favorites',
+        'pub_date',
+    )
+    list_filter = ('name', 'author__username', 'tags__name', 'cooking_time')
+    readonly_fields = ('added_to_favorites',)
+    inlines = (RecipeIngredientInLine, RecipeTagInLine)
+    search_fields = ('name', 'author__username',)
+
+    @display(description='В избранном у')
+    def added_to_favorites(self, obj):
+        return obj.favorites.count()
+
+
+class FavoriteShoppingListAdmin(admin.ModelAdmin):
+    list_display = ('user', 'recipe',)
+    list_filter = ('user', 'recipe',)
+    search_fields = ('user', 'recipe',)
+
+
+class IngredientAdmin(admin.ModelAdmin):
+    list_display = ('name', 'measurement_unit',)
+    list_filter = ('name', 'measurement_unit',)
+    search_fields = ('name', 'measurement_unit',)
+
+
+class TagAdmin(admin.ModelAdmin):
+    list_display = ('name', 'color', 'slug',)
+    list_filter = ('name', 'color', 'slug',)
+    search_fields = ('name', 'slug',)
+
+
+class SubscribtionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'author',)
+    list_filter = ('user', 'author',)
+    search_fields = ('user', 'author',)
+
+
+class RecipeIngredientAdmin(admin.ModelAdmin):
+    list_display = ('recipe', 'ingredient',)
+    list_filter = ('recipe',)
+
+
+class RecipeTagAdmin(admin.ModelAdmin):
+    list_display = ('recipe', 'tag',)
+    list_filter = ('recipe',)
+
+
+admin.site.register(Favorite, FavoriteShoppingListAdmin)
+admin.site.register(Ingredient, IngredientAdmin)
+admin.site.register(Recipe, RecipeAdmin)
+admin.site.register(RecipeIngredient, RecipeIngredientAdmin)
+admin.site.register(RecipeTag, RecipeTagAdmin)
+admin.site.register(ShoppingList, FavoriteShoppingListAdmin)
+admin.site.register(Subscription, SubscribtionAdmin)
+admin.site.register(Tag, TagAdmin)
+admin.site.register(User, UserAdmin)
