@@ -1,7 +1,9 @@
 # flake8: noqa
-import psycopg2
+import csv
 import pandas as pd
+import psycopg2
 import os
+import sqlite3
 
 from dotenv import load_dotenv
 
@@ -12,6 +14,7 @@ DATA = {
     'ingredients.csv': 'recipes_ingredient',
     'tags.csv': 'recipes_tag',
 }
+DB_FILE = 'db.sqlite3'
 
 DB_CONFIG = {
     'dbname': os.getenv('POSTGRES_DB', 'django'),
@@ -29,13 +32,20 @@ def copy_data(table_name, cursor, key):
         cursor.copy_expert(query, file)
 
 
-conn = psycopg2.connect(**DB_CONFIG)
-conn.autocommit = True
-
-for key in DATA:
-    table_name = DATA[key]
-    cursor = conn.cursor()
-    copy_data(table_name, cursor, key)
-    cursor.close()
-
-conn.close()
+if os.getenv('SQLITE_ACTIVATED', 'False') == 'True':
+    conn = sqlite3.connect(DB_FILE)
+    for key in DATA:
+        csv_file = f'{DIRECTORY}{key}'
+        table_name = DATA[key]
+        df = pd.read_csv(csv_file)
+        df.to_sql(table_name, conn, if_exists='append', index=False)
+    conn.close()
+else:
+    conn = psycopg2.connect(**DB_CONFIG)
+    conn.autocommit = True
+    for key in DATA:
+        table_name = DATA[key]
+        cursor = conn.cursor()
+        copy_data(table_name, cursor, key)
+        cursor.close()
+    conn.close()
