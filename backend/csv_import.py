@@ -55,6 +55,11 @@ else:
     for key in DATA:
         table_name = DATA[key]
         cursor = conn.cursor()
-        copy_data(table_name, cursor, key)
+        try:
+            copy_data(table_name, cursor, key)
+        except psycopg2.IntegrityError as error:
+            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
+        except Exception as error:
+            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
         cursor.close()
     conn.close()
