@@ -63,3 +63,4 @@ else:
             raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
         cursor.close()
     conn.close()
+    print('done')
