@@ -30,7 +30,6 @@ services:
     command: cp -r /app/build/. /frontend_static/
     volumes:
       - static:/frontend_static
-      - ./frontend/:/app/result_build/
 
   gateway:
     build: ./nginx
@@ -40,7 +39,5 @@ services:
     volumes:
       - static:/static
       - media:/app/media
-      - ./frontend/build:/usr/share/nginx/html/
-      - ./docs/:/usr/share/nginx/html/api/docs/
     depends_on:
       - backend
