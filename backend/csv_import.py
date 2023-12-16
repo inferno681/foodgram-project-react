@@ -41,6 +41,8 @@ if os.getenv('SQLITE_ACTIVATED', 'False') == 'True':
             df.to_sql(table_name, conn, if_exists='append', index=False)
         except sqlite3.IntegrityError as error:
             raise sqlite3.IntegrityError(f'Данные уже загружены. log:{error}')
+        except Exception as error:
+            raise sqlite3.IntegrityError(f'Данные уже загружены. log:{error}')
     conn.close()
 else:
     conn = psycopg2.connect(**DB_CONFIG)
@@ -51,6 +53,8 @@ else:
         try:
             copy_data(table_name, cursor, key)
         except psycopg2.IntegrityError as error:
+            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
+        except Exception as error:
             raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
 
         cursor.close()
