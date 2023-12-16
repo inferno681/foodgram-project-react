@@ -28,7 +28,12 @@ def copy_data(table_name, cursor, key):
         header = file.readline().strip().split(',')
         query = (f'COPY {table_name} ({", ".join(header)}) '
                  'FROM STDIN WITH (FORMAT CSV, HEADER FALSE, DELIMITER ",")')
-        cursor.copy_expert(query, file)
+        try:
+            cursor.copy_expert(query, file)
+        except psycopg2.IntegrityError as error:
+            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
+        except Exception as error:
+            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
 
 
 if os.getenv('SQLITE_ACTIVATED', 'False') == 'True':
@@ -50,12 +55,6 @@ else:
     for key in DATA:
         table_name = DATA[key]
         cursor = conn.cursor()
-        try:
-            copy_data(table_name, cursor, key)
-        except psycopg2.IntegrityError as error:
-            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
-        except Exception as error:
-            raise psycopg2.IntegrityError(f'Данные уже загружены. log:{error}')
-
+        copy_data(table_name, cursor, key)
         cursor.close()
     conn.close()
