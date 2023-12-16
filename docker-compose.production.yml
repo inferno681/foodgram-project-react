@@ -30,6 +30,7 @@ services:
     command: cp -r /app/build/. /frontend_static/
     volumes:
       - static:/frontend_static
+      - ./frontend/:/app/result_build/
 
   gateway:
     image: inferno681/foodgram_gateway
@@ -40,7 +41,6 @@ services:
       - static:/static
       - media:/app/media
       - ./frontend/build:/usr/share/nginx/html/
-      - ./docs/redoc.html:/usr/share/nginx/html/api/docs/redoc.html
-      - ./docs/openapi-schema.yml:/usr/share/nginx/html/api/docs/openapi-schema.yml
+      - ./docs/:/usr/share/nginx/html/api/docs/
     depends_on:
       - backend
