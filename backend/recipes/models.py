@@ -1,7 +1,9 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.validators import MinValueValidator
 
+from api.views import SELF_SUBSCRIBE_MESSAGE
 
 LENGTH_LIMITS_USER_FIELDS = 150
 LENGTH_LIMITS_NAME_AND_SLUG_FIELDS = 200
@@ -302,6 +304,11 @@ class Subscription(models.Model):
         )]
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
+
+    def clean(self):
+        super().clean()
+        if self.user == self.author:
+            raise ValidationError(SELF_SUBSCRIBE_MESSAGE)
 
     def __str__(self):
         return str(self.user) + '/' + str(self.author)
