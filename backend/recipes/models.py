@@ -3,7 +3,6 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.validators import MinValueValidator
 
-from api.views import SELF_SUBSCRIBE_MESSAGE
 
 LENGTH_LIMITS_USER_FIELDS = 150
 LENGTH_LIMITS_NAME_AND_SLUG_FIELDS = 200
@@ -21,6 +20,7 @@ RECIPE = (
     'Текст: {text:.15}. '
     'Дата публикации: {pub_date}. '
 )
+SELF_SUBSCRIBE_MESSAGE = 'Нельзя подписаться на себя!'
 
 
 class User(AbstractUser):
