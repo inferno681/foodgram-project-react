@@ -151,7 +151,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
 
-    'DEFAULT_PAGINATION_CLASS': 'api.pagination.CustomPagination',
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.LimitPageNumberPagination',
     'PAGE_SIZE': 6,
 
 }
@@ -166,7 +166,7 @@ DJOSER = {
     },
 
     'PERMISSIONS': {
-        'user': ['api.permissions.CustomCurrentUserOrAdminOrReadOnly'],
+        'user': ['rest_framework.permissions.AllowAny'],
         'user_list': ['rest_framework.permissions.IsAuthenticatedOrReadOnly'],
     }
 }

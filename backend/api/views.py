@@ -6,7 +6,11 @@ from djoser.views import UserViewSet
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import (
+    IsAuthenticated,
+    AllowAny,
+    SAFE_METHODS
+)
 from rest_framework.response import Response
 
 from .filters import RecipeFilter
@@ -20,7 +24,7 @@ from recipes.models import (
     Tag,
     User,
 )
-from .pagination import CustomPagination
+from .pagination import LimitPageNumberPagination
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (
     IngredientSerializer,
@@ -69,7 +73,7 @@ class IngredientViewSet(TagIngredientViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    pagination_class = CustomPagination
+    pagination_class = LimitPageNumberPagination
     filter_backends = (DjangoFilterBackend,)
     permission_classes = (IsAuthorOrReadOnly,)
     filterset_class = RecipeFilter
@@ -159,6 +163,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 
 class CustomUserViewSet(UserViewSet):
+    def get_permissions(self):
+        if self.request.path == '/api/users/me/':
+            permission_classes = (IsAuthenticated,)
+        elif self.action == 'subscribtion':
+            permission_classes = (IsAuthenticated,)
+        else:
+            permission_classes = (AllowAny,)
+
+        return [permission() for permission in permission_classes]
+
     @action(methods=('POST', 'DELETE'),
             detail=True,
             url_path='subscribe',
