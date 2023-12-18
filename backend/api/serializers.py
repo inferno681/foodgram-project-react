@@ -165,9 +165,9 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         recipe.tags.set(tags)
         return super().update(recipe, validated_data)
 
-    def to_representation(self, instance):
+    def to_representation(self, recipe):
         return RecipeSerializer(
-            instance, context={'request': self.context.get('request')}
+            recipe, context=self.context
         ).data
 
 
@@ -217,30 +217,29 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(UserSerializer):
-    id = serializers.ReadOnlyField(source='author.id')
-    email = serializers.ReadOnlyField(source='author.email')
-    username = serializers.ReadOnlyField(source='author.username')
-    first_name = serializers.ReadOnlyField(source='author.first_name')
-    last_name = serializers.ReadOnlyField(source='author.last_name')
+    id = serializers.IntegerField(source='author.id')
+    email = serializers.EmailField(source='author.email')
+    username = serializers.CharField(source='author.username')
+    first_name = serializers.CharField(source='author.first_name')
+    last_name = serializers.CharField(source='author.last_name')
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = tuple(UserSerializer.Meta.fields) + \
-            ('recipes', 'recipes_count')
+        fields = (*UserSerializer.Meta.fields, 'recipes', 'recipes_count')
         read_only_fields = ("email", "username", "first_name", "last_name")
 
     def get_recipes(self, obj):
-        limit = self.context.get("request").GET.get("recipes_limit")
-        recipes = obj.author.recipe.all()
-        if limit:
-            recipes = recipes[: int(limit)]
-        serializer = ShortRecipeSerializer(recipes, many=True, read_only=True)
+        limit = int(self.context.get(
+            "request").GET.get('recipes_limit', 10**10))
+        serializer = ShortRecipeSerializer(
+            obj.author.recipe.all()[: limit], many=True, read_only=True
+        )
         return serializer.data
 
     def get_recipes_count(self, obj):
-        return Recipe.objects.filter(author=obj.author).count()
+        return obj.author.recipe.count()
 
     def get_is_subscribed(self, obj):
         return Subscription.objects.filter(

@@ -52,20 +52,19 @@ SUBSCRIPTION_EXIST_MESSAGE = {'errors': 'Вы уже подписаны на э�
 NO_SUBSCRIBTION_MESSAGE = {'errors': 'Нельзя удалить несуществующую подписку!'}
 
 
-class TagIngredientViewSet(
-        mixins.ListModelMixin,
-        mixins.RetrieveModelMixin,
-        viewsets.GenericViewSet):
-    pagination_class = None
-
-
-class TagViewSet(TagIngredientViewSet):
+class TagViewSet(mixins.ListModelMixin,
+                 mixins.RetrieveModelMixin,
+                 viewsets.GenericViewSet):
     queryset = Tag.objects.all()
+    pagination_class = None
     serializer_class = TagSerializer
 
 
-class IngredientViewSet(TagIngredientViewSet):
+class IngredientViewSet(mixins.ListModelMixin,
+                        mixins.RetrieveModelMixin,
+                        viewsets.GenericViewSet):
     queryset = Ingredient.objects.all()
+    pagination_class = None
     serializer_class = IngredientSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('name',)
