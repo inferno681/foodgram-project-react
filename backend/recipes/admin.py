@@ -6,7 +6,6 @@ from .models import (
     Ingredient,
     Recipe,
     RecipeIngredient,
-    RecipeTag,
     ShoppingList,
     Subscription,
     Tag,
@@ -42,7 +41,6 @@ class RecipeIngredientInLine(admin.TabularInline):
 
 
 class RecipeTagInLine(admin.TabularInline):
-    model = RecipeTag
     extra = 5
     min_num = 1
 
@@ -58,7 +56,7 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     list_filter = ('name', 'author__username', 'tags__name', 'cooking_time')
     readonly_fields = ('added_to_favorites',)
-    inlines = (RecipeIngredientInLine, RecipeTagInLine)
+    inlines = (RecipeIngredientInLine, )
     search_fields = ('name', 'author__username',)
 
     @display(description='В избранном у')
@@ -104,7 +102,6 @@ admin.site.register(Favorite, FavoriteShoppingListAdmin)
 admin.site.register(Ingredient, IngredientAdmin)
 admin.site.register(Recipe, RecipeAdmin)
 admin.site.register(RecipeIngredient, RecipeIngredientAdmin)
-admin.site.register(RecipeTag, RecipeTagAdmin)
 admin.site.register(ShoppingList, FavoriteShoppingListAdmin)
 admin.site.register(Subscription, SubscribtionAdmin)
 admin.site.register(Tag, TagAdmin)

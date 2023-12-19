@@ -175,7 +175,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)
     author = UserSerializer()
     ingredients = IngredientAmountSerializer(
-        many=True, source='recipe')
+        many=True, source='recipes')
     is_favorited = SerializerMethodField()
     is_in_shopping_cart = SerializerMethodField()
     image = Base64ImageField()
@@ -217,11 +217,6 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(UserSerializer):
-    id = serializers.IntegerField(source='author.id')
-    email = serializers.EmailField(source='author.email')
-    username = serializers.CharField(source='author.username')
-    first_name = serializers.CharField(source='author.first_name')
-    last_name = serializers.CharField(source='author.last_name')
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
@@ -234,14 +229,14 @@ class SubscriptionSerializer(UserSerializer):
         limit = int(self.context.get(
             "request").GET.get('recipes_limit', 10**10))
         serializer = ShortRecipeSerializer(
-            obj.author.recipe.all()[: limit], many=True, read_only=True
+            obj.recipes.all()[: limit], many=True, read_only=True
         )
         return serializer.data
 
     def get_recipes_count(self, obj):
-        return obj.author.recipe.count()
+        return obj.recipes.count()
 
     def get_is_subscribed(self, obj):
         return Subscription.objects.filter(
-            author=obj.author, user=self.context.get('request').user
+            author=obj, user=self.context.get('request').user
         ).exists()

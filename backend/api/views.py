@@ -187,7 +187,7 @@ class CustomUserViewSet(UserViewSet):
             if not created:
                 raise ValidationError(SUBSCRIPTION_EXIST_MESSAGE)
             serializer = SubscriptionSerializer(
-                subscribtion, context={'request': request})
+                author, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         if not Subscription.objects.filter(user=user, author=author).exists():
             raise ValidationError(NO_SUBSCRIBTION_MESSAGE)
@@ -199,8 +199,8 @@ class CustomUserViewSet(UserViewSet):
             url_path='subscriptions',
             permission_classes=(IsAuthenticated,))
     def get_subscribtions(self, request):
-        bloger = request.user.subscriber.all()
-        pages = self.paginate_queryset(bloger)
+        pages = self.paginate_queryset(
+            User.objects.filter(subscriptions__user=request.user))
         serializer = SubscriptionSerializer(
             pages, many=True, context={'request': request})
         return self.get_paginated_response(serializer.data)

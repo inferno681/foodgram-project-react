@@ -3,8 +3,11 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.validators import MinValueValidator
 
+from .validators import validate_color, validate_username
+
 
 LENGTH_LIMITS_USER_FIELDS = 150
+LENGTH_LIMITS_EMAIL_FIELD = 200
 LENGTH_LIMITS_NAME_AND_SLUG_FIELDS = 200
 TAG = (
     'Название: {name:.15}. '
@@ -32,9 +35,16 @@ class User(AbstractUser):
         'first_name',
         'last_name',
     ]
+    username = models.CharField(
+        db_index=True,
+        max_length=LENGTH_LIMITS_USER_FIELDS,
+        unique=True,
+        validators=(validate_username,)
+    )
     email = models.EmailField(
         blank=False,
-        unique=True
+        unique=True,
+        max_length=LENGTH_LIMITS_EMAIL_FIELD,
     )
     first_name = models.CharField(
         'Имя',
@@ -43,6 +53,10 @@ class User(AbstractUser):
     )
     last_name = models.CharField(
         'Фамилия',
+        max_length=LENGTH_LIMITS_USER_FIELDS,
+        blank=False
+    )
+    password = models.CharField(
         max_length=LENGTH_LIMITS_USER_FIELDS,
         blank=False
     )
@@ -68,7 +82,8 @@ class Tag(models.Model):
         'Цвет',
         max_length=7,
         unique=True,
-        blank=False
+        blank=False,
+        validators=(validate_color,)
     )
     slug = models.SlugField(
         'Слаг',
@@ -105,8 +120,8 @@ class Ingredient(models.Model):
 
     class Meta:
         ordering = ('name',)
-        verbose_name = 'Ингредиент'
-        verbose_name_plural = 'Ингредиенты'
+        verbose_name = 'Продукт'
+        verbose_name_plural = 'Продукты'
 
     def __str__(self):
         return INGREDIENT.format(
@@ -120,23 +135,22 @@ class Recipe(models.Model):
 
     tags = models.ManyToManyField(
         Tag,
-        through='RecipeTag',
         blank=False,
         verbose_name='Тэги'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='recipe',
+        related_name='recipes',
         blank=False,
         verbose_name='Автор'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
-        related_name='recipe',
+        related_name='recipes',
         blank=False,
-        verbose_name='Ингредиенты'
+        verbose_name='Продукты'
     )
     name = models.CharField(
         'Название',
@@ -146,6 +160,7 @@ class Recipe(models.Model):
     image = models.ImageField(
         upload_to='recipes/images/',
         null=False,
+        default=None,
         blank=False
     )
     text = models.TextField(
@@ -159,8 +174,7 @@ class Recipe(models.Model):
     )
     pub_date = models.DateTimeField(
         'Дата публикации',
-        auto_now_add=True,
-        db_index=True
+        auto_now_add=True
     )
 
     class Meta:
@@ -176,38 +190,11 @@ class Recipe(models.Model):
         )
 
 
-class RecipeTag(models.Model):
-
-    recipe = models.ForeignKey(
-        Recipe,
-        on_delete=models.CASCADE,
-        blank=False,
-        verbose_name='Рецепт'
-    )
-    tag = models.ForeignKey(
-        Tag,
-        on_delete=models.CASCADE,
-        blank=False,
-        verbose_name='Тэг'
-    )
-
-    class Meta:
-        verbose_name = 'Рецепт/тег'
-        verbose_name_plural = 'Рецепты/теги'
-        constraints = [models.UniqueConstraint(
-            fields=['tag', 'recipe'],
-            name='unique_recipe_tag'
-        )]
-
-    def __str__(self):
-        return f'{self.recipe} / {self.tag}'
-
-
 class RecipeIngredient(models.Model):
 
     recipe = models.ForeignKey(
         Recipe,
-        related_name='recipe',
+        related_name='recipes',
         on_delete=models.CASCADE,
         blank=False,
         verbose_name='Рецепт'
@@ -221,13 +208,13 @@ class RecipeIngredient(models.Model):
 
     )
     amount = models.IntegerField(
-        'Количество',
+        'Мера',
         validators=(MinValueValidator(1),)
     )
 
     class Meta:
-        verbose_name = 'Рецепт/ингредиент'
-        verbose_name_plural = 'Рецепты/ингредиенты'
+        verbose_name = 'Рецепт-ингредиент'
+        verbose_name_plural = 'Рецепты-ингредиенты'
         constraints = [models.UniqueConstraint(
             fields=['ingredient', 'recipe'],
             name='unique_recipe_ingredient'
@@ -286,13 +273,12 @@ class Subscription(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='subscriber',
         verbose_name='Подписчик'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='bloger',
+        related_name='subscriptions',
         verbose_name='Блогер'
     )
 
