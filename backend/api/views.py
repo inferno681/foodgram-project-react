@@ -94,20 +94,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk):
         user = request.user
+        recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
-            if not Recipe.objects.filter(id=pk).exists():
-                raise ValidationError(NO_RECIPE_MESSAGE)
-            recipe = Recipe.objects.filter(id=pk).get()
             shopping_list, created = ShoppingList.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
                 raise ValidationError(RECIPE_IN_SHOPPING_LIST_MESSAGE)
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        recipe = get_object_or_404(Recipe, id=pk)
-        if not ShoppingList.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError(NO_RECIPE_IN_SHOPPING_LIST_MESSAGE)
-        ShoppingList.objects.filter(user=user, recipe=recipe).delete()
+        get_object_or_404(ShoppingList, user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=('GET',),
