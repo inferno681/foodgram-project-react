@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin import display
 from django.contrib.auth.admin import UserAdmin
+from django.db.models import Count
 
 from .models import (
     Favorite,
@@ -18,17 +19,20 @@ admin.site.empty_value_display = 'Не задано'
 
 
 class SubscriptionsAmountFilter(admin.SimpleListFilter):
-    title = 'Количество подписок'
+    title = 'С учетом подписок'
     parameter_name = 'subscriptions_amount'
 
     def lookups(self, request, model_admin):
         return (
-            ('gt_zero', 'Больше нуля'),
+            ('with_subscriptions', 'только с подписками'),
+            ('with_subscribers', 'только с подписчиками'),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == 'gt_zero':
-            return User.subscriptions_as_user.
+        if self.value() == 'with_subscriptions':
+            return User.objects.filter(subscriptions_as_user__isnull=False).distinct()
+        if self.value() == 'with_subscribers':
+            return User.objects.filter(subscriptions__isnull=False).distinct()
         return queryset
 
 
@@ -55,7 +59,7 @@ class UserAdmin(UserAdmin):
         'first_name',
         'last_name',
     )
-    list_filter = [SubscriptionsAmountFilter]
+    list_filter = (SubscriptionsAmountFilter,)
 
     @display(description='Количество рецептов')
     def recipes_amount(self, obj):
