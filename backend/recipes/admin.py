@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.admin import display
+from django.contrib.auth.admin import UserAdmin
 
 from .models import (
     Favorite,
@@ -16,14 +17,37 @@ from .models import (
 admin.site.empty_value_display = 'Не задано'
 
 
-class UserAdmin(admin.ModelAdmin):
+class SubscriptionsAmountFilter(admin.SimpleListFilter):
+    title = 'Количество подписок'
+    parameter_name = 'subscriptions_amount'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('gt_zero', 'Больше нуля'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'gt_zero':
+            return User.subscriptions_as_user.
+        return queryset
+
+
+@admin.register(User)
+class UserAdmin(UserAdmin):
     list_display = (
         'email',
         'username',
         'is_staff',
         'first_name',
         'last_name',
+        'recipes_amount',
+        'subscriptions_amount',
+        'subscribers_amount'
     )
+    readonly_fields = (
+        'recipes_amount',
+        'subscriptions_amount',
+        'subscribers_amount')
     search_fields = (
         'email',
         'username',
@@ -31,7 +55,19 @@ class UserAdmin(admin.ModelAdmin):
         'first_name',
         'last_name',
     )
-    list_filter = ('email', 'username')
+    list_filter = [SubscriptionsAmountFilter]
+
+    @display(description='Количество рецептов')
+    def recipes_amount(self, obj):
+        return obj.recipes.count()
+
+    @display(description='Количество подписок')
+    def subscriptions_amount(self, obj):
+        return obj.subscriptions_as_user.count()
+
+    @display(description='Количество подписчиков')
+    def subscribers_amount(self, obj):
+        return obj.subscriptions.count()
 
 
 class RecipeIngredientInLine(admin.TabularInline):
@@ -105,4 +141,3 @@ admin.site.register(RecipeIngredient, RecipeIngredientAdmin)
 admin.site.register(ShoppingList, FavoriteShoppingListAdmin)
 admin.site.register(Subscription, SubscribtionAdmin)
 admin.site.register(Tag, TagAdmin)
-admin.site.register(User, UserAdmin)
