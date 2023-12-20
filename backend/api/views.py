@@ -1,8 +1,9 @@
 from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from django.http import HttpResponse
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -14,6 +15,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 
 from .filters import RecipeFilter
+from .functions import get_shopping_list_text
 from recipes.models import (
     Favorite,
     Ingredient,
@@ -41,10 +43,7 @@ RECIPE_IN_SHOPPING_LIST_MESSAGE = {'errors': 'Рецепт уже в списк�
 NO_RECIPE_IN_SHOPPING_LIST_MESSAGE = {
     'errors': 'Рецепта нет в списке покупок!'}
 SHOPPING_LIST_EMPTY_MESSAGE = {'errors': 'Список покупок пуст!'}
-SHOPPING_LIST_TITLE_FOR_DOWNLOAD = shopping_list = (
-    'Список покупок\n'
-    'Пользователь: {user_full_name}\n')
-SHOPPING_LIST_FILE_NAME = '{username}_shopping_list.txt'
+SHOPPING_LIST_FILE_NAME = '{date}_{username}_shopping_list.txt'
 RECIPE_IN_FAVORITES_MESSAGE = {'errors': 'Рецепт уже в избранном!'}
 NO_RECIPE_IN_FAVORITE_MESSAGE = {'errors': 'Рецепта нет в избранном!'}
 SELF_SUBSCRIBE_MESSAGE = {'errors': 'Нельзя подписаться на себя!'}
@@ -88,6 +87,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(author=self.request.user)
 
+    def get_shopping_list_data(self, user):
+        ingredients = RecipeIngredient.objects.filter(
+            recipe__shoppinglists__user=user
+        ).values(
+            'ingredient__name',
+            'ingredient__measurement_unit'
+        ).annotate(amount=Sum('amount'))
+        recipes = RecipeIngredient.objects.filter(
+            recipe__shoppinglists__user=user
+        ).values_list(
+            'recipe__name',
+            flat=True
+        ).distinct()
+        return ingredients, recipes
+
     @action(methods=('POST', 'DELETE'),
             detail=True,
             url_path='shopping_cart',
@@ -113,23 +127,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
         if not ShoppingList.objects.filter(user=user).exists():
             raise ValidationError(SHOPPING_LIST_EMPTY_MESSAGE)
-        ingredients = RecipeIngredient.objects.filter(
-            recipe__shoppinglists__user=user
-        ).values(
-            'ingredient__name',
-            'ingredient__measurement_unit'
-        ).annotate(amount=Sum('amount'))
-        shopping_list = SHOPPING_LIST_TITLE_FOR_DOWNLOAD.format(
-            user_full_name=user.get_full_name()
+        ingredients, recipes = self.get_shopping_list_data(user)
+        filename = SHOPPING_LIST_FILE_NAME.format(
+            date=timezone.now().strftime("%d-%m-%Y"),
+            username=user.username
         )
-        shopping_list += '\n'.join([
-            f'- {ingredient["ingredient__name"]} '
-            f'({ingredient["ingredient__measurement_unit"]})'
-            f' - {ingredient["amount"]}'
-            for ingredient in ingredients
-        ])
-        filename = SHOPPING_LIST_FILE_NAME.format(username=user.username)
-        response = HttpResponse(shopping_list, content_type='text/plain')
+        response = FileResponse(
+            get_shopping_list_text(user, ingredients, recipes),
+            content_type='text/plain'
+        )
         response['Content-Disposition'] = f'attachment; filename={filename}'
         return response
 
