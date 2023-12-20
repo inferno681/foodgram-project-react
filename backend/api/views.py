@@ -2,7 +2,7 @@ from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
-from djoser.views import UserViewSet
+from djoser.views import UserViewSet as DjoserUserViewSet
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -76,6 +76,22 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthorOrReadOnly,)
     filterset_class = RecipeFilter
 
+    @staticmethod
+    def add_delete_obj(request, pk, model):
+        user = request.user
+        recipe = get_object_or_404(Recipe, id=pk)
+        if request.method == 'POST':
+            _, created = model.objects.get_or_create(
+                user=user, recipe=recipe)
+            if not created:
+                raise ValidationError(RECIPE_IN_SHOPPING_LIST_MESSAGE
+                                      if model == ShoppingList
+                                      else RECIPE_IN_FAVORITES_MESSAGE)
+            serializer = ShortRecipeSerializer(recipe)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        get_object_or_404(model, user=user, recipe=recipe).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
             return RecipeSerializer
@@ -107,17 +123,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             url_path='shopping_cart',
             permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk):
-        user = request.user
-        recipe = get_object_or_404(Recipe, id=pk)
-        if request.method == 'POST':
-            shopping_list, created = ShoppingList.objects.get_or_create(
-                user=user, recipe=recipe)
-            if not created:
-                raise ValidationError(RECIPE_IN_SHOPPING_LIST_MESSAGE)
-            serializer = ShortRecipeSerializer(recipe)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        get_object_or_404(ShoppingList, user=user, recipe=recipe).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return RecipeViewSet.add_delete_obj(request, pk, ShoppingList)
 
     @action(methods=('GET',),
             detail=False,
@@ -144,25 +150,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             url_path='favorite',
             permission_classes=(IsAuthenticated,))
     def favorites(self, request, pk):
-        user = request.user
-        if request.method == 'POST':
-            if not Recipe.objects.filter(id=pk).exists():
-                raise ValidationError(NO_RECIPE_MESSAGE)
-            recipe = Recipe.objects.filter(id=pk).get()
-            favorite, created = Favorite.objects.get_or_create(
-                user=user, recipe=recipe)
-            if not created:
-                raise ValidationError(RECIPE_IN_FAVORITES_MESSAGE)
-            serializer = ShortRecipeSerializer(recipe)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        recipe = get_object_or_404(Recipe, id=pk)
-        if not Favorite.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError(NO_RECIPE_IN_FAVORITE_MESSAGE)
-        Favorite.objects.filter(user=user, recipe=recipe).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return RecipeViewSet.add_delete_obj(request, pk, Favorite)
 
 
-class CustomUserViewSet(UserViewSet):
+class UserViewSet(DjoserUserViewSet):
     def get_permissions(self):
         if self.request.path == '/api/users/me/':
             permission_classes = (IsAuthenticated,)
@@ -183,16 +174,16 @@ class CustomUserViewSet(UserViewSet):
         if user == author:
             raise ValidationError(SELF_SUBSCRIBE_MESSAGE)
         if request.method == 'POST':
-            subscribtion, created = Subscription.objects.get_or_create(
+            _, created = Subscription.objects.get_or_create(
                 user=user, author=author)
             if not created:
                 raise ValidationError(SUBSCRIPTION_EXIST_MESSAGE)
             serializer = SubscriptionSerializer(
                 author, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        if not Subscription.objects.filter(user=user, author=author).exists():
-            raise ValidationError(NO_SUBSCRIBTION_MESSAGE)
-        Subscription.objects.filter(user=user, author=author).delete()
+        subscribtion = get_object_or_404(
+            Subscription, user=user, author=author)
+        subscribtion.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=('GET',),
