@@ -19,12 +19,12 @@ from recipes.models import (
 
 NO_IMAGE_MESSAGE = {'image': 'Это поле не может быть пустым.'}
 NO_TAGS_MESSAGE = {'tags': 'Нужно выбрать хотя бы один тег!'}
-SAME_TAGS_MESSAGE = 'Следующие теги не уникальны: {tags}'
+SAME_TAGS_MESSAGE = 'Следующие теги не уникальны: {items}'
 NO_INGREDIENTS_MESSAGE = {
     'ingredients': 'Нужно выбрать хотя бы один ингердиент!'}
 WRONG_INGREDIENT_MESSAGE = ('Следующие ингредиенты отсутствуют '
                             'в базе данных: {ingredient} ')
-SAME_INGREDIENTS_MESSAGE = 'Следующие ингредиенты не уникальны: {ingredients}'
+SAME_INGREDIENTS_MESSAGE = 'Следующие ингредиенты не уникальны: {items}'
 WRONG_AMOUNT_MESSAGE = {
     'amount': 'Количество ингредиента должно быть больше нуля!'}
 
@@ -109,8 +109,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def not_unique_items(self, items):
-        return set([item for item in items if items.count(item) > 1])
+    def not_unique_items_validation(self, items, message):
+        not_unique = set(item for item in items if items.count(item) > 1)
+        if not_unique:
+            raise serializers.ValidationError(
+                message.format(items=not_unique))
+
+        return set(item for item in items if items.count(item) > 1)
 
     def validate(self, data):
         if not data.get('image'):
@@ -118,9 +123,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         tags = data.get('tags')
         if not tags:
             raise serializers.ValidationError(NO_TAGS_MESSAGE)
-        if self.not_unique_items(tags):
-            raise serializers.ValidationError(
-                SAME_TAGS_MESSAGE.format(tags=self.not_unique_items(tags)))
+        self.not_unique_items_validation(tags, SAME_TAGS_MESSAGE)
         ingredients = data.get('ingredients')
         if not ingredients:
             raise serializers.ValidationError(NO_INGREDIENTS_MESSAGE)
@@ -133,21 +136,18 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                 WRONG_INGREDIENT_MESSAGE.format(
                     ingredient=ingredients_out_of_database
                 ))
-        if self.not_unique_items(
-                [ingredient['id'] for ingredient in ingredients]):
-            raise serializers.ValidationError(SAME_INGREDIENTS_MESSAGE.format(
-                ingredients=self.not_unique_items(
-                    [ingredient['id'] for ingredient in ingredients])
-            ))
+        self.not_unique_items_validation(
+            [ingredient['id'] for ingredient in ingredients],
+            SAME_INGREDIENTS_MESSAGE)
         return data
 
     def create_ingredients_amounts(self, recipe, ingredients):
-        RecipeIngredient.objects.bulk_create([RecipeIngredient(
+        RecipeIngredient.objects.bulk_create(RecipeIngredient(
             ingredient=get_object_or_404(
-                Ingredient, id=ingredient.get("id")),
+                Ingredient, id=ingredient.get('id')),
             recipe=recipe,
             amount=ingredient.get("amount")
-        ) for ingredient in ingredients])
+        ) for ingredient in ingredients)
 
     def create(self, validated_data):
         ingredients = validated_data.pop("ingredients")
@@ -228,10 +228,9 @@ class SubscriptionSerializer(UserSerializer):
     def get_recipes(self, obj):
         limit = int(self.context.get(
             "request").GET.get('recipes_limit', 10**10))
-        serializer = ShortRecipeSerializer(
+        return ShortRecipeSerializer(
             obj.recipes.all()[: limit], many=True, read_only=True
-        )
-        return serializer.data
+        ).data
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()

@@ -1,4 +1,3 @@
-from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -20,7 +19,6 @@ from recipes.models import (
     Favorite,
     Ingredient,
     Recipe,
-    RecipeIngredient,
     ShoppingList,
     Subscription,
     Tag,
@@ -51,17 +49,21 @@ SUBSCRIPTION_EXIST_MESSAGE = {'errors': 'Вы уже подписаны на э�
 NO_SUBSCRIBTION_MESSAGE = {'errors': 'Нельзя удалить несуществующую подписку!'}
 
 
-class TagViewSet(mixins.ListModelMixin,
-                 mixins.RetrieveModelMixin,
-                 viewsets.GenericViewSet):
+class TagViewSet(
+        mixins.ListModelMixin,
+        mixins.RetrieveModelMixin,
+        viewsets.GenericViewSet
+):
     queryset = Tag.objects.all()
     pagination_class = None
     serializer_class = TagSerializer
 
 
-class IngredientViewSet(mixins.ListModelMixin,
-                        mixins.RetrieveModelMixin,
-                        viewsets.GenericViewSet):
+class IngredientViewSet(
+        mixins.ListModelMixin,
+        mixins.RetrieveModelMixin,
+        viewsets.GenericViewSet
+):
     queryset = Ingredient.objects.all()
     pagination_class = None
     serializer_class = IngredientSerializer
@@ -77,16 +79,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     @staticmethod
-    def add_delete_obj(request, pk, model):
+    def add_delete_obj(request, pk, model, message):
         user = request.user
         recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
             _, created = model.objects.get_or_create(
                 user=user, recipe=recipe)
             if not created:
-                raise ValidationError(RECIPE_IN_SHOPPING_LIST_MESSAGE
-                                      if model == ShoppingList
-                                      else RECIPE_IN_FAVORITES_MESSAGE)
+                raise ValidationError(message)
             serializer = ShortRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         get_object_or_404(model, user=user, recipe=recipe).delete()
@@ -100,30 +100,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def perform_update(self, serializer):
-        serializer.save(author=self.request.user)
-
-    def get_shopping_list_data(self, user):
-        ingredients = RecipeIngredient.objects.filter(
-            recipe__shoppinglists__user=user
-        ).values(
-            'ingredient__name',
-            'ingredient__measurement_unit'
-        ).annotate(amount=Sum('amount'))
-        recipes = RecipeIngredient.objects.filter(
-            recipe__shoppinglists__user=user
-        ).values_list(
-            'recipe__name',
-            flat=True
-        ).distinct()
-        return ingredients, recipes
-
     @action(methods=('POST', 'DELETE'),
             detail=True,
             url_path='shopping_cart',
             permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk):
-        return RecipeViewSet.add_delete_obj(request, pk, ShoppingList)
+        return RecipeViewSet.add_delete_obj(
+            request,
+            pk,
+            ShoppingList,
+            RECIPE_IN_SHOPPING_LIST_MESSAGE
+        )
 
     @action(methods=('GET',),
             detail=False,
@@ -133,24 +120,27 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
         if not ShoppingList.objects.filter(user=user).exists():
             raise ValidationError(SHOPPING_LIST_EMPTY_MESSAGE)
-        ingredients, recipes = self.get_shopping_list_data(user)
         filename = SHOPPING_LIST_FILE_NAME.format(
             date=timezone.now().strftime("%d-%m-%Y"),
             username=user.username
         )
-        response = FileResponse(
-            get_shopping_list_text(user, ingredients, recipes),
-            content_type='text/plain'
+        return FileResponse(
+            get_shopping_list_text(user),
+            content_type='text/plain',
+            filename=filename
         )
-        response['Content-Disposition'] = f'attachment; filename={filename}'
-        return response
 
     @action(methods=('POST', 'DELETE'),
             detail=True,
             url_path='favorite',
             permission_classes=(IsAuthenticated,))
     def favorites(self, request, pk):
-        return RecipeViewSet.add_delete_obj(request, pk, Favorite)
+        return RecipeViewSet.add_delete_obj(
+            request,
+            pk,
+            Favorite,
+            RECIPE_IN_FAVORITES_MESSAGE
+        )
 
 
 class UserViewSet(DjoserUserViewSet):

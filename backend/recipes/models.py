@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Sum
 from django.core.validators import MinValueValidator
 
 from .validators import validate_color, validate_username
@@ -268,6 +269,22 @@ class ShoppingList(UserRecipeAbstractModel):
     class Meta(UserRecipeAbstractModel.Meta):
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
+
+    def get_shopping_list_ingredients(self, user):
+        return RecipeIngredient.objects.filter(
+            recipe__shoppinglists__user=user
+        ).values(
+            'ingredient__name',
+            'ingredient__measurement_unit'
+        ).annotate(amount=Sum('amount'))
+
+    def get_shopping_list_recipes(self, user):
+        return RecipeIngredient.objects.filter(
+            recipe__shoppinglists__user=user
+        ).values_list(
+            'recipe__name',
+            flat=True
+        ).distinct()
 
 
 class Subscription(models.Model):
