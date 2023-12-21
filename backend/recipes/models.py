@@ -36,12 +36,14 @@ class User(AbstractUser):
         'last_name',
     ]
     username = models.CharField(
+        'Никнэйм',
         db_index=True,
         max_length=LENGTH_LIMITS_USER_FIELDS,
         unique=True,
         validators=(validate_username,)
     )
     email = models.EmailField(
+        'e-mail',
         blank=False,
         unique=True,
         max_length=LENGTH_LIMITS_EMAIL_FIELD,
