@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin import display
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
 from .models import (
@@ -16,6 +17,7 @@ from .models import (
 
 
 admin.site.empty_value_display = 'Не задано'
+admin.site.unregister(Group)
 
 
 class SubscriptionsExistenceFilter(admin.SimpleListFilter):
