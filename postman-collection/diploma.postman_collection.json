@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "5af19dc6-dd3f-42f1-ac53-33bb3a82df28",
+		"_postman_id": "0fbb620d-193c-4210-b97f-fc9f4124747b",
 		"name": "diploma",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "16131548"
+		"_exporter_id": "30585685"
 	},
 	"item": [
 		{
@@ -8380,11 +8380,12 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Статус-код ответа должен быть 400\", function () {",
-											"    pm.expect(",
-											"        pm.response.status,",
-											"        \"При попытке добавить несуществующий рецепт в корзину должен вернуться ответ со статусом 400\"",
-											"    ).to.be.eql(\"Bad Request\");",
+											"pm.test(\"Response status code is 404\", function () {",
+											"    pm.response.to.have.status(404);",
+											"});",
+											"",
+											"pm.test(\"Response is an object with detail property\", function () {",
+											"    pm.expect(pm.response.json()).to.be.an('object').that.has.property('detail');",
 											"});"
 										],
 										"type": "text/javascript"
@@ -8641,11 +8642,12 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Статус-код ответа должен быть 400\", function () {",
-											"    pm.expect(",
-											"        pm.response.status,",
-											"        \"При попытке добавить несуществующий рецепт в избранное должен вернуться ответ со статусом 400\"",
-											"    ).to.be.eql(\"Bad Request\");",
+											"pm.test(\"Response status code is 404\", function () {",
+											"    pm.response.to.have.status(404);",
+											"});",
+											"",
+											"pm.test(\"Response is an object with detail property\", function () {",
+											"    pm.expect(pm.response.json()).to.be.an('object').that.has.property('detail');",
 											"});"
 										],
 										"type": "text/javascript"
@@ -9343,11 +9345,12 @@
 											"listen": "test",
 											"script": {
 												"exec": [
-													"pm.test(\"Статус-код ответа должен быть 400\", function () {",
-													"    pm.expect(",
-													"        pm.response.status,",
-													"        \"При попытке пользователя удалить несуществующую подписку должен вернуться ответ со статусом 400\"",
-													"    ).to.be.eql(\"Bad Request\");",
+													"pm.test(\"Статус-код ответа должен быть 404\", function () {",
+													"    pm.response.to.have.status(404);",
+													"});",
+													"",
+													"pm.test(\"Ответ должен содержать детали\", function () {",
+													"    pm.expect(pm.response.json()).to.have.property('detail');",
 													"});"
 												],
 												"type": "text/javascript"
@@ -9601,11 +9604,12 @@
 											"listen": "test",
 											"script": {
 												"exec": [
-													"pm.test(\"Статус-код ответа должен быть 400\", function () {",
-													"    pm.expect(",
-													"        pm.response.status,",
-													"        \"Запрос зарегистрированного пользователя на удаление из корзины рецепта, который не был туда добавлен, должен вернуть ответ со статусом 400\"",
-													"    ).to.be.eql(\"Bad Request\");",
+													"pm.test(\"Response status code is 404\", function () {",
+													"    pm.response.to.have.status(404);",
+													"});",
+													"",
+													"pm.test(\"Response is an object with detail property\", function () {",
+													"    pm.expect(pm.response.json()).to.be.an('object').that.has.property('detail');",
 													"});"
 												],
 												"type": "text/javascript"
@@ -9807,11 +9811,12 @@
 											"listen": "test",
 											"script": {
 												"exec": [
-													"pm.test(\"Статус-код ответа должен быть 400\", function () {",
-													"    pm.expect(",
-													"        pm.response.status,",
-													"        \"Запрос пользователя на удаление из избранного рецепта, который не был туда добавлен, должен вернуть ответ со статусом 400\"",
-													"    ).to.be.eql(\"Bad Request\");",
+													"pm.test(\"Response status code is 404\", function () {",
+													"    pm.response.to.have.status(404);",
+													"});",
+													"",
+													"pm.test(\"Response is an object with detail property\", function () {",
+													"    pm.expect(pm.response.json()).to.be.an('object').that.has.property('detail');",
 													"});"
 												],
 												"type": "text/javascript"
@@ -10531,6 +10536,82 @@
 			"key": "thirdUserUsername",
 			"value": "\"third-user-username\"",
 			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": ""
+		},
+		{
+			"key": "secondUserId",
+			"value": ""
+		},
+		{
+			"key": "thirdUserId",
+			"value": ""
+		},
+		{
+			"key": "userToken",
+			"value": ""
+		},
+		{
+			"key": "secondUserToken",
+			"value": ""
+		},
+		{
+			"key": "firstTagId",
+			"value": ""
+		},
+		{
+			"key": "firstTagSlug",
+			"value": ""
+		},
+		{
+			"key": "secondTagId",
+			"value": ""
+		},
+		{
+			"key": "secondTagSlug",
+			"value": ""
+		},
+		{
+			"key": "thirdTagId",
+			"value": ""
+		},
+		{
+			"key": "thirdTagSlug",
+			"value": ""
+		},
+		{
+			"key": "firstIndredientId",
+			"value": ""
+		},
+		{
+			"key": "ingredientNameFirstLatter",
+			"value": ""
+		},
+		{
+			"key": "secondIndredientId",
+			"value": ""
+		},
+		{
+			"key": "firstRecipeId",
+			"value": ""
+		},
+		{
+			"key": "secondRecipeId",
+			"value": ""
+		},
+		{
+			"key": "thirdRecipeId",
+			"value": ""
+		},
+		{
+			"key": "fourthRecipeId",
+			"value": ""
+		},
+		{
+			"key": "fifthRecipeId",
+			"value": ""
 		}
 	]
 }

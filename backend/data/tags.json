@@ -1,0 +1,27 @@
+[
+    {
+        "name": "завтрак",
+        "color": "#FF5733",
+        "slug": "breakfast"
+    },
+    {
+        "name": "обед",
+        "color": "#FFC300",
+        "slug": "lunch"
+    },
+    {
+        "name": "ужин",
+        "color": "#DAF7A6",
+        "slug": "dinner"
+    },
+    {
+        "name": "экзотика",
+        "color": "#5DADE2",
+        "slug": "exsotic"
+    },
+    {
+        "name": "сладости",
+        "color": "#9562D5",
+        "slug": "desserts"
+    }
+]
