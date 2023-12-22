@@ -8,7 +8,6 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import (
     IsAuthenticated,
-    AllowAny,
     SAFE_METHODS
 )
 from rest_framework.response import Response
@@ -146,13 +145,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 class UserViewSet(DjoserUserViewSet):
     def get_permissions(self):
         if self.request.path == '/api/users/me/':
-            permission_classes = (IsAuthenticated,)
-        elif self.action == 'subscribtion':
-            permission_classes = (IsAuthenticated,)
-        else:
-            permission_classes = (AllowAny,)
-
-        return [permission() for permission in permission_classes]
+            return (IsAuthenticated(),)
+        return super().get_permissions()
 
     @action(methods=('POST', 'DELETE'),
             detail=True,

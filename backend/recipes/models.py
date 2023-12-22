@@ -2,9 +2,9 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, RegexValidator
 
-from .validators import validate_color, validate_username
+from .validators import validate_username
 
 
 LENGTH_LIMITS_USER_FIELDS = 150
@@ -25,6 +25,7 @@ RECIPE = (
     'Дата публикации: {pub_date}. '
 )
 SELF_SUBSCRIBE_MESSAGE = 'Нельзя подписаться на себя!'
+INVALID_COLOR_MESSAGE = 'Задайте цвет в HEX формате!'
 
 
 class User(AbstractUser):
@@ -38,26 +39,22 @@ class User(AbstractUser):
     ]
     username = models.CharField(
         'Никнэйм',
-        db_index=True,
         max_length=LENGTH_LIMITS_USER_FIELDS,
         unique=True,
         validators=(validate_username,)
     )
     email = models.EmailField(
         'e-mail',
-        blank=False,
         unique=True,
         max_length=LENGTH_LIMITS_EMAIL_FIELD,
     )
     first_name = models.CharField(
         'Имя',
         max_length=LENGTH_LIMITS_USER_FIELDS,
-        blank=False
     )
     last_name = models.CharField(
         'Фамилия',
         max_length=LENGTH_LIMITS_USER_FIELDS,
-        blank=False
     )
     password = models.CharField(
         max_length=LENGTH_LIMITS_USER_FIELDS,
@@ -78,15 +75,12 @@ class Tag(models.Model):
     name = models.CharField(
         'Название',
         max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS,
-        unique=True,
-        blank=False
     )
     color = models.CharField(
         'Цвет',
         max_length=7,
-        unique=True,
-        blank=False,
-        validators=(validate_color,)
+        validators=(RegexValidator(
+            r'^#([0-9a-fA-F]{6})$', INVALID_COLOR_MESSAGE),)
     )
     slug = models.SlugField(
         'Слаг',
@@ -113,12 +107,10 @@ class Ingredient(models.Model):
     name = models.CharField(
         'Название',
         max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS,
-        blank=False
     )
     measurement_unit = models.CharField(
         'Единица измерения',
         max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS,
-        blank=False
     )
 
     class Meta:
@@ -138,42 +130,34 @@ class Recipe(models.Model):
 
     tags = models.ManyToManyField(
         Tag,
-        blank=False,
+        related_name='recipes',
         verbose_name='Тэги'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='recipes',
-        blank=False,
         verbose_name='Автор'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
         related_name='recipes',
-        blank=False,
         verbose_name='Продукты'
     )
     name = models.CharField(
         'Название',
         max_length=LENGTH_LIMITS_NAME_AND_SLUG_FIELDS,
-        blank=False
     )
     image = models.ImageField(
         upload_to='recipes/images/',
-        null=False,
-        default=None,
-        blank=False
     )
     text = models.TextField(
         'Текст',
-        blank=False
     )
     cooking_time = models.IntegerField(
         'Время приготовления',
         validators=(MinValueValidator(1),),
-        blank=False
     )
     pub_date = models.DateTimeField(
         'Дата публикации',
@@ -199,14 +183,12 @@ class RecipeIngredient(models.Model):
         Recipe,
         related_name='recipes',
         on_delete=models.CASCADE,
-        blank=False,
         verbose_name='Рецепт'
     )
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
         related_name='ingredients',
-        blank=False,
         verbose_name='Ингредиент'
 
     )
@@ -252,7 +234,7 @@ class UserRecipeAbstractModel(models.Model):
         )]
 
     def __str__(self):
-        return str(self.user) + '/' + str(self.recipe)
+        return f'{str(self.user)} / {str(self.recipe)}'
 
 
 class Favorite(UserRecipeAbstractModel):
@@ -260,7 +242,7 @@ class Favorite(UserRecipeAbstractModel):
 
     class Meta(UserRecipeAbstractModel.Meta):
 
-        verbose_name = 'Избранный рецепт'
+        verbose_name = 'Избранное'
         verbose_name_plural = 'Избранное'
 
 
@@ -316,4 +298,4 @@ class Subscription(models.Model):
             raise ValidationError(SELF_SUBSCRIBE_MESSAGE)
 
     def __str__(self):
-        return str(self.user) + '/' + str(self.author)
+        return f'{str(self.user)} / {str(self.author)}'
