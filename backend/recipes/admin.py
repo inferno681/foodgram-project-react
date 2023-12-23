@@ -3,6 +3,7 @@ from django.contrib.admin import display
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
+import pandas
 
 from .models import (
     Favorite,
@@ -93,20 +94,45 @@ class RecipesCookingTimeFilter(admin.SimpleListFilter):
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
+    @staticmethod
+    def range_params():
+        cooking_time_data = pandas.Series([
+            item for item in Recipe.objects.values_list(
+                'cooking_time', flat=True
+            )])
+
+        first_point_cooking_time = int(cooking_time_data.where(
+            cooking_time_data < cooking_time_data.quantile(0.33)
+        ).max())
+        second_point_cooking_time = int(cooking_time_data.where(
+            cooking_time_data > cooking_time_data.quantile(0.66)
+        ).max())
+        range_params = {
+            'fast': (min(cooking_time_data), first_point_cooking_time),
+            'normal': (first_point_cooking_time, second_point_cooking_time),
+            'long': (second_point_cooking_time, max(cooking_time_data))
+        }
+        return range_params
+
     def lookups(self, request, model_admin):
+        range_params = self.range_params()
+
         return (
-            ('fast', 'быстрые (до 15 минут)'),
-            ('medium', 'средние (от 15 до 30 минут)'),
-            ('long', 'долгие (более 30 минут)'),
+            ('fast',
+             'быстрые (до '
+             f'{range_params["fast"][1]} минут)'),
+            ('normal',
+             'средние ('
+             f'от {range_params["normal"][0]} '
+             f'до {range_params["normal"][1]} минут)'),
+            ('long',
+             f'долгие (более {range_params["long"][0]} минут)'),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == 'fast':
-            return Recipe.objects.filter(cooking_time__lt=15)
-        if self.value() == 'medium':
-            return Recipe.objects.filter(cooking_time__range=(15, 30))
-        if self.value() == 'long':
-            return Recipe.objects.filter(cooking_time__gte=30)
+        if self.value():
+            return Recipe.objects.filter(
+                cooking_time__range=self.range_params()[self.value()])
         return queryset
 
 

@@ -218,7 +218,8 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 class SubscriptionSerializer(UserSerializer):
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField(
+        source='recipes.count')
 
     class Meta:
         model = User
@@ -231,9 +232,6 @@ class SubscriptionSerializer(UserSerializer):
         return ShortRecipeSerializer(
             obj.recipes.all()[: limit], many=True, read_only=True
         ).data
-
-    def get_recipes_count(self, obj):
-        return obj.recipes.count()
 
     def get_is_subscribed(self, obj):
         return Subscription.objects.filter(

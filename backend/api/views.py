@@ -163,7 +163,7 @@ class UserViewSet(DjoserUserViewSet):
             if not created:
                 raise ValidationError(SUBSCRIPTION_EXIST_MESSAGE)
             serializer = SubscriptionSerializer(
-                author, context={'request': request})
+                author, context=self.get_serializer_context())
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         subscribtion = get_object_or_404(
             Subscription, user=user, author=author)
@@ -178,5 +178,5 @@ class UserViewSet(DjoserUserViewSet):
         pages = self.paginate_queryset(
             User.objects.filter(subscriptions__user=request.user))
         serializer = SubscriptionSerializer(
-            pages, many=True, context={'request': request})
+            pages, many=True, context=self.get_serializer_context())
         return self.get_paginated_response(serializer.data)
