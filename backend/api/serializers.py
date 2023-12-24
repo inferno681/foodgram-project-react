@@ -1,5 +1,4 @@
 from django.core.validators import MinValueValidator
-from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
@@ -22,8 +21,6 @@ NO_TAGS_MESSAGE = {'tags': 'Нужно выбрать хотя бы один т�
 SAME_TAGS_MESSAGE = 'Следующие теги не уникальны: {items}'
 NO_INGREDIENTS_MESSAGE = {
     'ingredients': 'Нужно выбрать хотя бы один ингердиент!'}
-WRONG_INGREDIENT_MESSAGE = ('Следующие ингредиенты отсутствуют '
-                            'в базе данных: {ingredient} ')
 SAME_INGREDIENTS_MESSAGE = 'Следующие ингредиенты не уникальны: {items}'
 WRONG_AMOUNT_MESSAGE = {
     'amount': 'Количество ингредиента должно быть больше нуля!'}
@@ -77,18 +74,12 @@ class IngredientAmountSerializer(serializers.ModelSerializer):
 
 
 class IngredientWriteSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(write_only=True)
+    id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all(),
+                                            source='ingredient.id')
 
     class Meta:
         model = RecipeIngredient
         fields = ('id', 'amount')
-
-    def validate_id(self, id):
-        if not Ingredient.objects.filter(id=id).exists():
-            raise serializers.ValidationError(
-                WRONG_INGREDIENT_MESSAGE.format(ingredient=id)
-            )
-        return id
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
@@ -127,24 +118,14 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         ingredients = data.get('ingredients')
         if not ingredients:
             raise serializers.ValidationError(NO_INGREDIENTS_MESSAGE)
-        ingredients_out_of_database = [
-            ingredient for ingredient in ingredients if not Ingredient.objects
-            .filter(id=ingredient['id']).exists()
-        ]
-        if ingredients_out_of_database:
-            raise serializers.ValidationError(
-                WRONG_INGREDIENT_MESSAGE.format(
-                    ingredient=ingredients_out_of_database
-                ))
         self.not_unique_items_validation(
-            [ingredient['id'] for ingredient in ingredients],
+            [ingredient['ingredient']['id'] for ingredient in ingredients],
             SAME_INGREDIENTS_MESSAGE)
         return data
 
     def create_ingredients_amounts(self, recipe, ingredients):
         RecipeIngredient.objects.bulk_create(RecipeIngredient(
-            ingredient=get_object_or_404(
-                Ingredient, id=ingredient.get('id')),
+            ingredient=ingredient['ingredient']['id'],
             recipe=recipe,
             amount=ingredient.get("amount")
         ) for ingredient in ingredients)
