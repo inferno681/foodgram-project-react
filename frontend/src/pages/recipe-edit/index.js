@@ -24,7 +24,7 @@ const RecipeEdit = ({ onItemDelete }) => {
   const [
     recipeFileWasManuallyChanged,
     setRecipeFileWasManuallyChanged
-  ] = useState(false)
+  ] = useState(true)
 
   const [ ingredients, setIngredients ] = useState([])
   const [ showIngredients, setShowIngredients ] = useState(false)
@@ -208,7 +208,7 @@ const RecipeEdit = ({ onItemDelete }) => {
               onClick={({ id, name, measurement_unit }) => {
                 handleIngredientAutofill({ id, name, measurement_unit })
                 setIngredients([])
-                setShowIngredients(false)
+                setShowIngredients(true)
               }}
             />}
           </div>

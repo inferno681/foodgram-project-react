@@ -1,5 +1,4 @@
 import json
-import sys
 
 from django.core.management.base import BaseCommand
 
@@ -12,12 +11,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         with open('./data/tags.json', 'r', encoding='utf-8') as file:
             tags = json.load(file)
-
-        if Tag.objects.filter(id=1).exists():
-            print('Тэги уже есть в базе данных')
-            sys.exit()
-        for tag in tags:
-            Tag.objects.create(**tag)
+        tags_for_upload = [
+            tag for tag in tags if tag['slug'] in (
+                set([tag['slug'] for tag in tags]).difference(
+                    set(Tag.objects.values_list('slug', flat=True)
+                        )))]
+        Tag.objects.bulk_create(Tag(
+            **tag) for tag in tags_for_upload)
 
         self.stdout.write(self.style.SUCCESS(
-            f'Импортировано {len(tags)} тэгов'))
+            f'Импортировано {len(tags_for_upload)} тэгов'))
