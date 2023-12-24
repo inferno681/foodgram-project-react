@@ -95,11 +95,7 @@ class Tag(models.Model):
         verbose_name_plural = 'Теги'
 
     def __str__(self):
-        return TAG.format(
-            name=self.name,
-            color=self.color,
-            slug=self.slug
-        )
+        return f'{self.name}, {self.color}, {self.slug}'
 
 
 class Ingredient(models.Model):
@@ -119,10 +115,7 @@ class Ingredient(models.Model):
         verbose_name_plural = 'Продукты'
 
     def __str__(self):
-        return INGREDIENT.format(
-            name=self.name,
-            measurement_unit=self.measurement_unit
-        )
+        return f'{self.name}, {self.measurement_unit}'
 
 
 class Recipe(models.Model):

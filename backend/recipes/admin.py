@@ -103,7 +103,7 @@ class RecipesCookingTimeFilter(admin.SimpleListFilter):
 
         range_params = {
             'fast': ((bins[0], bins[1]), values_in_bins[0]),
-            'normal': ((bins[1], bins[2]),  values_in_bins[1]),
+            'normal': ((bins[1], bins[2]), values_in_bins[1]),
             'long': ((bins[2], bins[3]), values_in_bins[2]),
         }
         return range_params
