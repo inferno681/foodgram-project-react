@@ -3,6 +3,7 @@ from django.contrib.admin import display
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
+import numpy
 
 from .models import (
     Favorite,
@@ -26,8 +27,8 @@ class SubscriptionsExistenceFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('with_subscriptions', 'только с подписками'),
-            ('with_subscribers', 'только с подписчиками'),
+            ('with_subscriptions', 'с подписками'),
+            ('with_subscribers', 'с подписчиками'),
         )
 
     def queryset(self, request, queryset):
@@ -63,17 +64,17 @@ class UserAdmin(UserAdmin):
         'first_name',
         'last_name',
     )
-    list_filter = ('username', 'email', SubscriptionsExistenceFilter,)
+    list_filter = (SubscriptionsExistenceFilter,)
 
-    @display(description='Количество рецептов')
+    @display(description='Рецептов')
     def recipes_amount(self, user):
         return user.recipes.count()
 
-    @display(description='Количество подписок')
+    @display(description='Подписок')
     def subscriptions_amount(self, user):
         return user.subscriptions_as_user.count()
 
-    @display(description='Количество подписчиков')
+    @display(description='Подписчиков')
     def subscribers_amount(self, user):
         return user.subscriptions.count()
 
@@ -84,29 +85,82 @@ class RecipeIngredientInLine(admin.TabularInline):
     min_num = 1
 
 
-class RecipeTagInLine(admin.TabularInline):
-    extra = 5
-    min_num = 1
-
-
 class RecipesCookingTimeFilter(admin.SimpleListFilter):
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
+    @staticmethod
+    def get_range_params():
+        cooking_time_data = [
+            item for item in Recipe.objects.values_list(
+                'cooking_time', flat=True
+            )]
+        bins = numpy.round(numpy.linspace(min(cooking_time_data),
+                                          max(cooking_time_data), 4))
+
+        bins = [int(bin) for bin in bins]
+        values_in_bins, _ = numpy.histogram(cooking_time_data, bins)
+
+        range_params = {
+            'fast': ((bins[0], bins[1]), values_in_bins[0]),
+            'normal': ((bins[1], bins[2]), values_in_bins[1]),
+            'long': ((bins[2], bins[3]), values_in_bins[2]),
+        }
+        return range_params
+
     def lookups(self, request, model_admin):
+        range_params = self.get_range_params()
+
         return (
-            ('fast', 'быстрые (до 15 минут)'),
-            ('medium', 'средние (от 15 до 30 минут)'),
-            ('long', 'долгие (более 30 минут)'),
+            ('fast',
+             'быстрые (до '
+             f'{range_params["fast"][0][1]} минут)'
+             f'(Рецептов:{range_params["fast"][1]}) '),
+            ('normal',
+             'средние ('
+             f'от {range_params["normal"][0][0]} '
+             f'до {range_params["normal"][0][1]} минут) '
+             f'(Рецептов:{range_params["normal"][1]})'),
+            ('long',
+             f'долгие (более {range_params["long"][0][0]} минут) '
+             f'(Рецептов:{range_params["long"][1]})'),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == 'fast':
-            return Recipe.objects.filter(cooking_time__lt=15)
-        if self.value() == 'medium':
-            return Recipe.objects.filter(cooking_time__range=(15, 30))
-        if self.value() == 'long':
-            return Recipe.objects.filter(cooking_time__gte=30)
+        if self.value():
+            return Recipe.objects.filter(
+                cooking_time__range=self.get_range_params()[self.value()][0])
+        return queryset
+
+
+class AuthorFilter(admin.SimpleListFilter):
+    title = 'Автор'
+    parameter_name = 'author'
+
+    def lookups(self, request, model_admin):
+        return sorted(set((recipe.author.id, recipe.author.username)
+                          for recipe in model_admin.model.objects.all()
+                          ), key=lambda x: x[1])
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(author__id=self.value())
+        return queryset
+
+
+class TagFilter(admin.SimpleListFilter):
+    title = 'Тэг'
+    parameter_name = 'tag'
+
+    def lookups(self, request, model_admin):
+        return (
+            (tag.id, tag.name)
+            for tag in Tag.objects.all()
+        )
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(tags__id=self.value())
         return queryset
 
 
@@ -123,40 +177,41 @@ class RecipeAdmin(admin.ModelAdmin):
         'image_preview',
         'pub_date',
     )
-    list_filter = ('author__username', 'tags__name', RecipesCookingTimeFilter)
+    list_filter = (AuthorFilter, TagFilter, RecipesCookingTimeFilter)
     readonly_fields = ('added_to_favorites', 'show_tags',
                        'show_ingredients', 'image_preview')
     inlines = (RecipeIngredientInLine, )
     search_fields = ('name', 'author__username', 'tags__name', 'tags__slug')
 
     @display(description='Изображение')
+    @mark_safe
     def image_preview(self, recipe):
-        return mark_safe(
-            f'<img src="{recipe.image.url}" width="150" height="150" />'
-        )
+        return f'<img src="{recipe.image.url}" width="150" height="150" />'
 
     @display(description='В избранном у')
     def added_to_favorites(self, recipe):
         return recipe.favorites.count()
 
     @display(description='Тэги')
+    @mark_safe
     def show_tags(self, recipe):
-        return mark_safe('<br> '.join([
+        return '<br> '.join(
             '<span style="background-color: '
-            f'{tag.color}">{tag}</span>'
+            f'{tag.color}">{tag.name}</span>'
             for tag in recipe.tags.all()
-        ]))
+        )
 
     @display(description='Ингредиенты')
+    @mark_safe
     def show_ingredients(self, recipe):
-        return mark_safe('<br> '.join([
-            f'<span>{ingredient["amount"]} '
+        return '<br> '.join(
+            f'{ingredient["amount"]} '
             f'{ingredient["ingredient__measurement_unit"]} '
-            f'{ingredient["ingredient__name"]:.50}</span>'
-            for ingredient in recipe.recipes.values(
+            f'{ingredient["ingredient__name"]:.50}'
+            for ingredient in recipe.recipeingredients.values(
                 'amount', 'ingredient__measurement_unit', 'ingredient__name'
             )
-        ]))
+        )
 
 
 @admin.register(Favorite, ShoppingList)
@@ -169,14 +224,13 @@ class FavoriteShoppingListAdmin(admin.ModelAdmin):
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ('name', 'measurement_unit',)
-    list_filter = ('name', 'measurement_unit',)
+    list_filter = ('measurement_unit',)
     search_fields = ('name', 'measurement_unit',)
 
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = ('name', 'color', 'slug',)
-    list_filter = ('name', 'color', 'slug',)
     search_fields = ('name', 'slug',)
 
 

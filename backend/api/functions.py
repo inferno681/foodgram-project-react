@@ -1,10 +1,8 @@
-SHOPPING_LIST_TITLE_FOR_DOWNLOAD = shopping_list = (
-    'Список покупок\n'
-    'Пользователь: {user_full_name}\n')
+from recipes.models import ShoppingList
 
 
-def get_shopping_list_text(user, ingredients, recipes):
-    shopping_list = '\n'.join([
+def get_shopping_list_text(user):
+    return '\n'.join([
         'Список покупок',
         'Пользователь: {user_full_name}'.format(
             user_full_name=user.get_full_name()
@@ -12,9 +10,11 @@ def get_shopping_list_text(user, ingredients, recipes):
             f'{index}. {ingredient["amount"]} '
             f'({ingredient["ingredient__measurement_unit"]}) '
             f'- {ingredient["ingredient__name"]:.50} '
-            for index, ingredient in enumerate(ingredients, start=1)
+            for index, ingredient in enumerate(
+                ShoppingList().get_shopping_list_ingredients(user),
+                start=1
+            )
         ], 'Список рецептов: ',
         *[f'{index}. {recipe:.50}' for index, recipe in enumerate(
-            recipes, start=1)
+            ShoppingList().get_shopping_list_recipes(user), start=1)
           ]])
-    return shopping_list

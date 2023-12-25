@@ -1,5 +1,4 @@
 from django.core.validators import MinValueValidator
-from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
@@ -19,12 +18,10 @@ from recipes.models import (
 
 NO_IMAGE_MESSAGE = {'image': 'Это поле не может быть пустым.'}
 NO_TAGS_MESSAGE = {'tags': 'Нужно выбрать хотя бы один тег!'}
-SAME_TAGS_MESSAGE = 'Следующие теги не уникальны: {tags}'
+SAME_TAGS_MESSAGE = 'Следующие теги не уникальны: {items}'
 NO_INGREDIENTS_MESSAGE = {
     'ingredients': 'Нужно выбрать хотя бы один ингердиент!'}
-WRONG_INGREDIENT_MESSAGE = ('Следующие ингредиенты отсутствуют '
-                            'в базе данных: {ingredient} ')
-SAME_INGREDIENTS_MESSAGE = 'Следующие ингредиенты не уникальны: {ingredients}'
+SAME_INGREDIENTS_MESSAGE = 'Следующие ингредиенты не уникальны: {items}'
 WRONG_AMOUNT_MESSAGE = {
     'amount': 'Количество ингредиента должно быть больше нуля!'}
 
@@ -77,18 +74,12 @@ class IngredientAmountSerializer(serializers.ModelSerializer):
 
 
 class IngredientWriteSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(write_only=True)
+    id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all(),
+                                            source='ingredient.id')
 
     class Meta:
         model = RecipeIngredient
         fields = ('id', 'amount')
-
-    def validate_id(self, id):
-        if not Ingredient.objects.filter(id=id).exists():
-            raise serializers.ValidationError(
-                WRONG_INGREDIENT_MESSAGE.format(ingredient=id)
-            )
-        return id
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
@@ -109,8 +100,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def not_unique_items(self, items):
-        return set([item for item in items if items.count(item) > 1])
+    def not_unique_items_validation(self, items, message):
+        not_unique = set(item for item in items if items.count(item) > 1)
+        if not_unique:
+            raise serializers.ValidationError(
+                message.format(items=not_unique))
+
+        return set(item for item in items if items.count(item) > 1)
 
     def validate(self, data):
         if not data.get('image'):
@@ -118,36 +114,21 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         tags = data.get('tags')
         if not tags:
             raise serializers.ValidationError(NO_TAGS_MESSAGE)
-        if self.not_unique_items(tags):
-            raise serializers.ValidationError(
-                SAME_TAGS_MESSAGE.format(tags=self.not_unique_items(tags)))
+        self.not_unique_items_validation(tags, SAME_TAGS_MESSAGE)
         ingredients = data.get('ingredients')
         if not ingredients:
             raise serializers.ValidationError(NO_INGREDIENTS_MESSAGE)
-        ingredients_out_of_database = [
-            ingredient for ingredient in ingredients if not Ingredient.objects
-            .filter(id=ingredient['id']).exists()
-        ]
-        if ingredients_out_of_database:
-            raise serializers.ValidationError(
-                WRONG_INGREDIENT_MESSAGE.format(
-                    ingredient=ingredients_out_of_database
-                ))
-        if self.not_unique_items(
-                [ingredient['id'] for ingredient in ingredients]):
-            raise serializers.ValidationError(SAME_INGREDIENTS_MESSAGE.format(
-                ingredients=self.not_unique_items(
-                    [ingredient['id'] for ingredient in ingredients])
-            ))
+        self.not_unique_items_validation(
+            [ingredient['ingredient']['id'] for ingredient in ingredients],
+            SAME_INGREDIENTS_MESSAGE)
         return data
 
     def create_ingredients_amounts(self, recipe, ingredients):
-        RecipeIngredient.objects.bulk_create([RecipeIngredient(
-            ingredient=get_object_or_404(
-                Ingredient, id=ingredient.get("id")),
+        RecipeIngredient.objects.bulk_create(RecipeIngredient(
+            ingredient=ingredient['ingredient']['id'],
             recipe=recipe,
             amount=ingredient.get("amount")
-        ) for ingredient in ingredients])
+        ) for ingredient in ingredients)
 
     def create(self, validated_data):
         ingredients = validated_data.pop("ingredients")
@@ -175,7 +156,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)
     author = UserSerializer()
     ingredients = IngredientAmountSerializer(
-        many=True, source='recipes')
+        many=True, source='recipeingredients')
     is_favorited = SerializerMethodField()
     is_in_shopping_cart = SerializerMethodField()
     image = Base64ImageField()
@@ -218,7 +199,8 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 class SubscriptionSerializer(UserSerializer):
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField(
+        source='recipes.count')
 
     class Meta:
         model = User
@@ -228,13 +210,9 @@ class SubscriptionSerializer(UserSerializer):
     def get_recipes(self, obj):
         limit = int(self.context.get(
             "request").GET.get('recipes_limit', 10**10))
-        serializer = ShortRecipeSerializer(
+        return ShortRecipeSerializer(
             obj.recipes.all()[: limit], many=True, read_only=True
-        )
-        return serializer.data
-
-    def get_recipes_count(self, obj):
-        return obj.recipes.count()
+        ).data
 
     def get_is_subscribed(self, obj):
         return Subscription.objects.filter(
