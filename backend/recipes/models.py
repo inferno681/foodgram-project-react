@@ -113,6 +113,10 @@ class Ingredient(models.Model):
         ordering = ('name',)
         verbose_name = 'Продукт'
         verbose_name_plural = 'Продукты'
+        constraints = [models.UniqueConstraint(
+            fields=['name', 'measurement_unit'],
+            name='unique_name_measurement_unit'
+        )]
 
     def __str__(self):
         return f'{self.name}, {self.measurement_unit}'
@@ -123,19 +127,16 @@ class Recipe(models.Model):
 
     tags = models.ManyToManyField(
         Tag,
-        related_name='recipes',
         verbose_name='Тэги'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='recipes',
         verbose_name='Автор'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
-        related_name='recipes',
         verbose_name='Продукты'
     )
     name = models.CharField(
@@ -161,6 +162,7 @@ class Recipe(models.Model):
         ordering = ('-pub_date',)
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
+        default_related_name = 'recipes'
 
     def __str__(self):
         return RECIPE.format(
@@ -227,7 +229,7 @@ class UserRecipeAbstractModel(models.Model):
         )]
 
     def __str__(self):
-        return f'{str(self.user)} / {str(self.recipe)}'
+        return f'{self.user} / {self.recipe}'
 
 
 class Favorite(UserRecipeAbstractModel):
@@ -245,7 +247,8 @@ class ShoppingList(UserRecipeAbstractModel):
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
 
-    def get_shopping_list_ingredients(self, user):
+    @classmethod
+    def get_shopping_list_ingredients(cls, user):
         return RecipeIngredient.objects.filter(
             recipe__shoppinglists__user=user
         ).values(
@@ -253,12 +256,10 @@ class ShoppingList(UserRecipeAbstractModel):
             'ingredient__measurement_unit'
         ).annotate(amount=Sum('amount'))
 
-    def get_shopping_list_recipes(self, user):
+    @classmethod
+    def get_shopping_list_recipes(cls, user):
         return RecipeIngredient.objects.filter(
             recipe__shoppinglists__user=user
-        ).values_list(
-            'recipe__name',
-            flat=True
         ).distinct()
 
 
@@ -291,4 +292,4 @@ class Subscription(models.Model):
             raise ValidationError(SELF_SUBSCRIBE_MESSAGE)
 
     def __str__(self):
-        return f'{str(self.user)} / {str(self.author)}'
+        return f'{self.user} / {self.author}'

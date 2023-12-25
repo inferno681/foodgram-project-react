@@ -101,12 +101,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         )
 
     def not_unique_items_validation(self, items, message):
-        not_unique = set(item for item in items if items.count(item) > 1)
-        if not_unique:
+        not_unique_items = set(item for item in items if items.count(item) > 1)
+        if not_unique_items:
             raise serializers.ValidationError(
-                message.format(items=not_unique))
-
-        return set(item for item in items if items.count(item) > 1)
+                message.format(items=not_unique_items))
+        return items
 
     def validate(self, data):
         if not data.get('image'):
@@ -199,7 +198,7 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 class SubscriptionSerializer(UserSerializer):
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.IntegerField(
+    recipes_count = serializers.ReadOnlyField(
         source='recipes.count')
 
     class Meta:

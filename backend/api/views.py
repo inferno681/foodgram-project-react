@@ -49,9 +49,9 @@ NO_SUBSCRIBTION_MESSAGE = {'errors': 'Нельзя удалить несущес
 
 
 class TagViewSet(
-        mixins.ListModelMixin,
-        mixins.RetrieveModelMixin,
-        viewsets.GenericViewSet
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet
 ):
     queryset = Tag.objects.all()
     pagination_class = None
@@ -59,9 +59,9 @@ class TagViewSet(
 
 
 class IngredientViewSet(
-        mixins.ListModelMixin,
-        mixins.RetrieveModelMixin,
-        viewsets.GenericViewSet
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet
 ):
     queryset = Ingredient.objects.all()
     pagination_class = None
