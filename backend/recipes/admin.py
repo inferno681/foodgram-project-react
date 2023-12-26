@@ -1,9 +1,10 @@
+import ast
+
 from django.contrib import admin
 from django.contrib.admin import display
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
-import numpy
 
 from .models import (
     Favorite,
@@ -89,78 +90,45 @@ class RecipesCookingTimeFilter(admin.SimpleListFilter):
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
-    @staticmethod
-    def get_range_params():
-        cooking_time_data = [
+    def lookups(self, request, model_admin):
+        cooking_times_data = [
             item for item in Recipe.objects.values_list(
                 'cooking_time', flat=True
             )]
-        bins = numpy.round(numpy.linspace(min(cooking_time_data),
-                                          max(cooking_time_data), 4))
+        step = (max(cooking_times_data) - min(cooking_times_data)) / 3
 
-        bins = [int(bin) for bin in bins]
-        values_in_bins, _ = numpy.histogram(cooking_time_data, bins)
-
-        range_params = {
-            'fast': ((bins[0], bins[1]), values_in_bins[0]),
-            'normal': ((bins[1], bins[2]), values_in_bins[1]),
-            'long': ((bins[2], bins[3]), values_in_bins[2]),
-        }
-        return range_params
-
-    def lookups(self, request, model_admin):
-        range_params = self.get_range_params()
+        bin_points = [round(min(cooking_times_data) + i * step)
+                      for i in range(4)]
+        bins = [(bin_points[i], bin_points[i + 1]) for i in range(3)]
+        recipes_count = []
+        for i in range(3):
+            lower_point = bin_points[i]
+            upper_point = bin_points[i + 1]
+            count = len(
+                [value
+                 for value in cooking_times_data
+                 if lower_point <= value <= upper_point])
+            recipes_count.append(count)
 
         return (
-            ('fast',
+            (f'{bins[0]}',
              'быстрые (до '
-             f'{range_params["fast"][0][1]} минут)'
-             f'(Рецептов:{range_params["fast"][1]}) '),
-            ('normal',
+             f'{bin_points[1]} минут)'
+             f'(Рецептов:{recipes_count[0]}) '),
+            (f'{bins[1]}',
              'средние ('
-             f'от {range_params["normal"][0][0]} '
-             f'до {range_params["normal"][0][1]} минут) '
-             f'(Рецептов:{range_params["normal"][1]})'),
-            ('long',
-             f'долгие (более {range_params["long"][0][0]} минут) '
-             f'(Рецептов:{range_params["long"][1]})'),
+             f'от {bin_points[1]} '
+             f'до {bin_points[2]} минут) '
+             f'(Рецептов:{recipes_count[1]})'),
+            (f'{bins[2]}',
+             f'долгие (более {bin_points[2]} минут) '
+             f'(Рецептов:{recipes_count[2]})'),
         )
 
     def queryset(self, request, queryset):
         if self.value():
             return Recipe.objects.filter(
-                cooking_time__range=self.get_range_params()[self.value()][0])
-        return queryset
-
-
-class AuthorFilter(admin.SimpleListFilter):
-    title = 'Автор'
-    parameter_name = 'author'
-
-    def lookups(self, request, model_admin):
-        return sorted(set((recipe.author.id, recipe.author.username)
-                          for recipe in model_admin.model.objects.all()
-                          ), key=lambda x: x[1])
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(author__id=self.value())
-        return queryset
-
-
-class TagFilter(admin.SimpleListFilter):
-    title = 'Тэг'
-    parameter_name = 'tag'
-
-    def lookups(self, request, model_admin):
-        return (
-            (tag.id, tag.name)
-            for tag in Tag.objects.all()
-        )
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(tags__id=self.value())
+                cooking_time__range=ast.literal_eval(self.value()))
         return queryset
 
 
@@ -177,7 +145,9 @@ class RecipeAdmin(admin.ModelAdmin):
         'image_preview',
         'pub_date',
     )
-    list_filter = (AuthorFilter, TagFilter, RecipesCookingTimeFilter)
+    list_filter = (('author', admin.filters.RelatedOnlyFieldListFilter),
+                   ('tags', admin.filters.RelatedOnlyFieldListFilter),
+                   RecipesCookingTimeFilter)
     readonly_fields = ('added_to_favorites', 'show_tags',
                        'show_ingredients', 'image_preview')
     inlines = (RecipeIngredientInLine, )
@@ -205,12 +175,10 @@ class RecipeAdmin(admin.ModelAdmin):
     @mark_safe
     def show_ingredients(self, recipe):
         return '<br> '.join(
-            f'{ingredient["amount"]} '
-            f'{ingredient["ingredient__measurement_unit"]} '
-            f'{ingredient["ingredient__name"]:.50}'
-            for ingredient in recipe.recipeingredients.values(
-                'amount', 'ingredient__measurement_unit', 'ingredient__name'
-            )
+            f'{ingredient.amount} '
+            f'{ingredient.ingredient.measurement_unit} '
+            f'{ingredient.ingredient.name:.50}'
+            for ingredient in recipe.recipeingredients.all()
         )
 
 
