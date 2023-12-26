@@ -92,37 +92,33 @@ class RecipesCookingTimeFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         cooking_times_data = [
-            item for item in Recipe.objects.values_list(
-                'cooking_time', flat=True
-            )]
+            recipe.cooking_time for recipe in Recipe.objects.all()
+        ]
         step = (max(cooking_times_data) - min(cooking_times_data)) / 3
-
+        if step == 0:
+            return None
         bin_points = [round(min(cooking_times_data) + i * step)
                       for i in range(4)]
-        bins = [(bin_points[i], bin_points[i + 1]) for i in range(3)]
-        recipes_count = []
-        for i in range(3):
-            lower_point = bin_points[i]
-            upper_point = bin_points[i + 1]
-            count = len(
-                [value
-                 for value in cooking_times_data
-                 if lower_point <= value <= upper_point])
-            recipes_count.append(count)
+        bin_points[0] = 0
+        recipes_counts = [
+            sum(1 for value in cooking_times_data
+                if bin_points[i] < value <= bin_points[i + 1])
+            for i in range(3)
+        ]
 
         return (
-            (f'{bins[0]}',
+            ((bin_points[0], bin_points[1]),
              'быстрые (до '
              f'{bin_points[1]} минут)'
-             f'(Рецептов:{recipes_count[0]}) '),
-            (f'{bins[1]}',
+             f'(Рецептов:{recipes_counts[0]}) '),
+            ((bin_points[1]+1, bin_points[2]),
              'средние ('
              f'от {bin_points[1]} '
              f'до {bin_points[2]} минут) '
-             f'(Рецептов:{recipes_count[1]})'),
-            (f'{bins[2]}',
+             f'(Рецептов:{recipes_counts[1]})'),
+            ((bin_points[2]+1, bin_points[3]),
              f'долгие (более {bin_points[2]} минут) '
-             f'(Рецептов:{recipes_count[2]})'),
+             f'(Рецептов:{recipes_counts[2]})'),
         )
 
     def queryset(self, request, queryset):

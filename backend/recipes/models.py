@@ -247,8 +247,8 @@ class ShoppingList(UserRecipeAbstractModel):
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
 
-    @classmethod
-    def get_shopping_list_ingredients(cls, user):
+    @staticmethod
+    def get_shopping_list_ingredients(user):
         return RecipeIngredient.objects.filter(
             recipe__shoppinglists__user=user
         ).values(
@@ -256,8 +256,8 @@ class ShoppingList(UserRecipeAbstractModel):
             'ingredient__measurement_unit'
         ).annotate(amount=Sum('amount'))
 
-    @classmethod
-    def get_shopping_list_recipes(cls, user):
+    @staticmethod
+    def get_shopping_list_recipes(user):
         return RecipeIngredient.objects.filter(
             recipe__shoppinglists__user=user
         ).distinct()

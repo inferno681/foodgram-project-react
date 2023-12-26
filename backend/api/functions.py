@@ -20,7 +20,13 @@ def get_shopping_list_text(user):
             )
         ],
         'Список рецептов: ',
-        *[f'{index}. {recipe:.50}' for index, recipe in enumerate(
-            ShoppingList.get_shopping_list_recipes(user).values_list(
-                'recipe__name', flat=True), start=1)]
+        *[
+            f'{index}. {recipe:.50}'
+            for index, recipe in enumerate(
+                ShoppingList.get_shopping_list_recipes(user).values_list(
+                    'recipe__name',
+                    flat=True
+                ),
+                start=1
+            )]
     ])

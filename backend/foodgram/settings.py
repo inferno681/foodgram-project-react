@@ -171,4 +171,4 @@ DJOSER = {
     }
 }
 
-FOLDER_FOR_IMPORT = './data/'
+FOLDER_FOR_IMPORT = os.path.join(BASE_DIR, 'data')
