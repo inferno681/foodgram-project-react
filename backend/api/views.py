@@ -12,7 +12,7 @@ from rest_framework.permissions import (
 )
 from rest_framework.response import Response
 
-from .filters import RecipeFilter
+from .filters import IngredientFilter, RecipeFilter
 from .functions import get_shopping_list_text
 from recipes.models import (
     Favorite,
@@ -67,7 +67,7 @@ class IngredientViewSet(
     pagination_class = None
     serializer_class = IngredientSerializer
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('name',)
+    filterset_class = IngredientFilter
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
