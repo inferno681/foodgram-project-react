@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         with open(
-            f'{settings.FOLDER_FOR_IMPORT}\\tags.json',
+            f'{settings.FOLDER_FOR_IMPORT}/tags.json',
             'r',
             encoding='utf-8'
         ) as file:

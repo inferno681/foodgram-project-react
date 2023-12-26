@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         with open(
-            f'{settings.FOLDER_FOR_IMPORT}\\ingredients.json',
+            f'{settings.FOLDER_FOR_IMPORT}/ingredients.json',
             'r',
             encoding='utf-8',
         ) as file:
