@@ -111,12 +111,12 @@ class RecipesCookingTimeFilter(admin.SimpleListFilter):
              'быстрые (до '
              f'{bin_points[1]} минут)'
              f'(Рецептов:{recipes_counts[0]}) '),
-            ((bin_points[1]+1, bin_points[2]),
+            ((bin_points[1] + 1, bin_points[2]),
              'средние ('
              f'от {bin_points[1]} '
              f'до {bin_points[2]} минут) '
              f'(Рецептов:{recipes_counts[1]})'),
-            ((bin_points[2]+1, bin_points[3]),
+            ((bin_points[2] + 1, bin_points[3]),
              f'долгие (более {bin_points[2]} минут) '
              f'(Рецептов:{recipes_counts[2]})'),
         )
