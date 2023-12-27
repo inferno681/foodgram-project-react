@@ -1,6 +1,8 @@
+import base64
+
+from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from djoser.serializers import UserSerializer as DjoserUserSerializer
-from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 
@@ -24,6 +26,21 @@ NO_INGREDIENTS_MESSAGE = {
 SAME_INGREDIENTS_MESSAGE = 'Следующие ингредиенты не уникальны: {items}'
 WRONG_AMOUNT_MESSAGE = {
     'amount': 'Количество ингредиента должно быть больше нуля!'}
+
+
+class Base64ImageField(serializers.ImageField):
+
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
+
+            data = ContentFile(
+                base64.b64decode(imgstr),
+                name=f'image.{ext}',
+            )
+
+        return super().to_internal_value(data)
 
 
 class UserSerializer(DjoserUserSerializer):
@@ -87,7 +104,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         many=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(),
                                               many=True)
-    image = Base64ImageField(required=True, allow_null=False)
+    image = Base64ImageField()
 
     class Meta:
         model = Recipe
@@ -108,8 +125,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return items
 
     def validate(self, data):
-        if not data.get('image'):
-            raise serializers.ValidationError(NO_IMAGE_MESSAGE)
+
         tags = data.get('tags')
         if not tags:
             raise serializers.ValidationError(NO_TAGS_MESSAGE)
