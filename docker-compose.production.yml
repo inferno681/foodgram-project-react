@@ -18,7 +18,7 @@ services:
     volumes:
       - media:/app/media
       - static:/static
-      - redoc:/app/docs/
+      - redoc:/app/docs
   frontend:
     image: inferno681/foodgram_frontend
     volumes:
@@ -32,4 +32,4 @@ services:
       - ./frontend/build:/usr/share/nginx/html/
       - media:/app/media
       - static:/static
-      - redoc:/usr/share/nginx/html/api/docs/
+      - redoc:/usr/share/nginx/html/api/docs
