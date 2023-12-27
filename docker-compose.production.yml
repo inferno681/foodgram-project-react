@@ -18,11 +18,11 @@ services:
     volumes:
       - media:/app/media
       - static:/static
+      - redoc:/app/docs/
   frontend:
     image: inferno681/foodgram_frontend
     volumes:
       - ./frontend/:/app/result_build/
-      - redoc:/app/docs/
   nginx:
     image: nginx:1.19.3
     ports:
