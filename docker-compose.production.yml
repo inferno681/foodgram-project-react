@@ -4,6 +4,7 @@ volumes:
   pg_data:
   static:
   media:
+  redoc:
 
 
 services:
@@ -34,11 +35,12 @@ services:
   gateway:
     image: inferno681/foodgram_gateway
     env_file: .env
+    command: cp -r ./docs redoc:/
     ports:
       - 7000:80
     volumes:
       - static:/static
       - media:/app/media
-      - ./docs/:/usr/share/nginx/html/api/docs/
+      - redoc:/usr/share/nginx/html/api/docs/
     depends_on:
       - backend
