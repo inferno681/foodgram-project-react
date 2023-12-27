@@ -95,7 +95,7 @@ class Tag(models.Model):
         verbose_name_plural = 'Теги'
 
     def __str__(self):
-        return f'{self.name}, {self.color}, {self.slug}'
+        return f'{self.name}'
 
 
 class Ingredient(models.Model):
@@ -150,7 +150,7 @@ class Recipe(models.Model):
         'Текст',
     )
     cooking_time = models.IntegerField(
-        'Время приготовления',
+        'Время готовки',
         validators=(MinValueValidator(1),),
     )
     pub_date = models.DateTimeField(
@@ -184,7 +184,7 @@ class RecipeIngredient(models.Model):
         Ingredient,
         on_delete=models.CASCADE,
         related_name='recipeingredients',
-        verbose_name='Ингредиент'
+        verbose_name='Продукт'
 
     )
     amount = models.IntegerField(

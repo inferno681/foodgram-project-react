@@ -133,7 +133,6 @@ class RecipeAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'author',
-        'text',
         'cooking_time',
         'show_tags',
         'show_ingredients',
@@ -180,9 +179,14 @@ class RecipeAdmin(admin.ModelAdmin):
 
 @admin.register(Favorite, ShoppingList)
 class FavoriteShoppingListAdmin(admin.ModelAdmin):
-    list_display = ('user', 'recipe',)
-    list_filter = ('user', 'recipe',)
+    list_display = ('user', 'recipe_name',)
+    list_filter = ('user', 'recipe__name',)
     search_fields = ('user', 'recipe',)
+    readonly_fields = ('recipe_name',)
+
+    @display(description='Название рецепта')
+    def recipe_name(self, favorite):
+        return favorite.recipe.name
 
 
 @admin.register(Ingredient)
@@ -207,5 +211,10 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(RecipeIngredient)
 class RecipeIngredientAdmin(admin.ModelAdmin):
-    list_display = ('recipe', 'ingredient',)
-    list_filter = ('recipe',)
+    list_display = ('recipe_name', 'ingredient',)
+    search_fields = ('recipe__name', 'ingredient__name',)
+    readonly_fields = ('recipe_name',)
+
+    @display(description='Название рецепта')
+    def recipe_name(self, recipeingredient):
+        return recipeingredient.recipe.name
