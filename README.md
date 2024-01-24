@@ -4,7 +4,7 @@
 Сайт для публикации рецептов.
 
 Готовый проект можно посмотреть здесь:
-[Foodgram](https://foodyagram.ddns.net/)
+[Foodgram](https://foodgrampr.ddns.net/)
 
 
 ### Возможности:
